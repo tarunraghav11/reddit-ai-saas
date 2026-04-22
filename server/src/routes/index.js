@@ -1,35 +1,38 @@
 import express from "express";
 import { supabase } from "../config/supabase.js";
+import { fetchRedditPosts } from "../services/redditService.js";
 
 const router = express.Router();
 
 /**
- * Health Check Route
+ * Health Check
  */
 router.get("/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Server is running"
-  });
+  res.json({ success: true, message: "Server is running" });
 });
 
 /**
- * Test DB Connection
+ * Reddit Search Route
  */
-router.get("/test-db", async (req, res, next) => {
+router.get("/reddit/search", async (req, res, next) => {
   try {
-    const { data, error } = await supabase
-      .from("test")
-      .select("*");
+    const { query } = req.query;
 
-    if (error) {
-      throw new Error(error.message);
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: "Query parameter is required"
+      });
     }
+
+    const posts = await fetchRedditPosts(query);
 
     res.status(200).json({
       success: true,
-      data
+      count: posts.length,
+      data: posts
     });
+
   } catch (err) {
     next(err);
   }
