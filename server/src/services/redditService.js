@@ -20,8 +20,7 @@ export const fetchRedditPosts = async (query) => {
     const json = await response.json();
 
     if (!json?.data?.children) {
-      throw new Error("Invalid Reddit response structure");
-    }
+      return [];    }
 
     // Normalize data
     const posts = json.data.children.map((item) => {
@@ -41,7 +40,7 @@ export const fetchRedditPosts = async (query) => {
     return posts;
 
   } catch (error) {
-    console.error("❌ Reddit Service Error:", error.message);
+    console.error(" Reddit Service Error:", error.message);
     throw error;
   }
 };

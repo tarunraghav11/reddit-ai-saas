@@ -1,6 +1,7 @@
 import express from "express";
-import { supabase } from "../config/supabase.js";
 import { fetchRedditPosts } from "../services/redditService.js";
+import { savePosts } from "../services/redditRepository.js";
+
 
 const router = express.Router();
 
@@ -21,11 +22,19 @@ router.get("/reddit/search", async (req, res, next) => {
     if (!query) {
       return res.status(400).json({
         success: false,
-        message: "Query parameter is required"
+        message: "Query is required"
+      });
+    }
+    const posts = await fetchRedditPosts(query);
+
+    if (!posts || posts.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No posts found for the given query"
       });
     }
 
-    const posts = await fetchRedditPosts(query);
+    await savePosts(posts, query);
 
     res.status(200).json({
       success: true,
