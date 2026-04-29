@@ -1,6 +1,7 @@
 import express from "express";
 import { fetchRedditPosts } from "../services/redditService.js";
 import { savePosts, getCachedPosts } from "../services/redditRepository.js";
+import { analyzePosts } from "../services/aiService.js";
 import { isCacheFresh } from "../utils/cache.js";
 
 const router = express.Router();
@@ -32,11 +33,13 @@ router.get("/reddit/search", async (req, res, next) => {
     // Check cache
     const cachedPosts = await getCachedPosts(query);
     if (isCacheFresh(cachedPosts)) {
+      // Analyze posts with AI
+      const analyzedPosts = await analyzePosts(cachedPosts);
       return res.status(200).json({
         success: true,
         source: "cache",
-        count: cachedPosts.length,
-        data: cachedPosts
+        count: analyzedPosts.length,
+        data: analyzedPosts
       });
     }
 
@@ -59,11 +62,14 @@ router.get("/reddit/search", async (req, res, next) => {
     // Fetch from DB to ensure response reflects actual persisted state (source of truth)
     const savedPosts = await getCachedPosts(query);
 
+    // Analyze posts with AI
+    const analyzedPosts = await analyzePosts(savedPosts);
+
     return res.status(200).json({
       success: true,
       source: "api",
-      count: savedPosts.length,
-      data: savedPosts
+      count: analyzedPosts.length,
+      data: analyzedPosts
     });
 
   } catch (err) {
