@@ -9,14 +9,11 @@ const app = express();
  */
 app.use(express.json());
 
-app.use(cors({
-  origin: "*", // restrict in production
-}));
-
+app.use(cors());
 /**
  * Routes
  */
-app.use("/api", routes);
+app.use("/", routes);
 
 /**
  * Global Error Handler
