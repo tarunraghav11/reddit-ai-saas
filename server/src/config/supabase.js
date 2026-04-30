@@ -1,6 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 
+// Ensure env vars are loaded (in case imported before server.js loads them)
 dotenv.config();
 
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {

@@ -151,18 +151,23 @@ export const analyzeIntent = async (post) => {
   try {
     const client = getGroqClient();
 
-    const response = await client.chat.completions.create({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: 150,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Classify this Reddit post and return JSON only:"${post.title}"`
-        }
-      ]
-    });
+    const response = await Promise.race([
+      client.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 150,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Classify this Reddit post and return JSON only:"${post.title}"`
+          }
+        ]
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("AI request timeout after 5s")), 5000)
+      )
+    ]);
 
     const text = response.choices?.[0]?.message?.content;
 

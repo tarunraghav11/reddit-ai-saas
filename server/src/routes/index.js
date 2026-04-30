@@ -3,6 +3,8 @@ import { fetchRedditPosts } from "../services/redditService.js";
 import { savePosts, getCachedPosts } from "../services/redditRepository.js";
 import { analyzePosts } from "../services/aiService.js";
 import { isCacheFresh } from "../utils/cache.js";
+import { rankPosts, filterTopPosts } from "../services/rankingService.js";
+import { validateQuery } from "../utils/validators.js";
 
 const router = express.Router();
 
@@ -21,12 +23,13 @@ router.get("/health", (req, res) => {
  */
 router.get("/reddit/search", async (req, res, next) => {
   try {
-    const { query } = req.query;
-
-    if (!query || typeof query !== 'string' || query.trim() === "") {
+    let query;
+    try {
+      query = validateQuery(req.query.query);
+    } catch (err) {
       return res.status(400).json({
         success: false,
-        message: "Query parameter is required and must be a non-empty string"
+        message: err.message
       });
     }
 
@@ -35,11 +38,13 @@ router.get("/reddit/search", async (req, res, next) => {
     if (isCacheFresh(cachedPosts)) {
       // Analyze posts with AI
       const analyzedPosts = await analyzePosts(cachedPosts);
+      const rankedPosts = rankPosts(analyzedPosts);
+      const topPosts = filterTopPosts(rankedPosts, 5);
       return res.status(200).json({
         success: true,
         source: "cache",
-        count: analyzedPosts.length,
-        data: analyzedPosts
+        count: topPosts.length,
+        data: topPosts
       });
     }
 
@@ -59,17 +64,17 @@ router.get("/reddit/search", async (req, res, next) => {
     // Save to cache
     await savePosts(posts, query);
 
-    // Fetch from DB to ensure response reflects actual persisted state (source of truth)
-    const savedPosts = await getCachedPosts(query);
+    // Analyze posts with AI (use in-memory posts to avoid redundant DB call)
+    const analyzedPosts = await analyzePosts(posts);
 
-    // Analyze posts with AI
-    const analyzedPosts = await analyzePosts(savedPosts);
+    const rankedPosts = rankPosts(analyzedPosts);
+    const topPosts = filterTopPosts(rankedPosts, 5);
 
     return res.status(200).json({
       success: true,
       source: "api",
-      count: analyzedPosts.length,
-      data: analyzedPosts
+      count: topPosts.length,
+      data: topPosts
     });
 
   } catch (err) {

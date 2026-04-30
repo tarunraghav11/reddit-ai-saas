@@ -65,22 +65,14 @@ export const savePosts = async (posts, query) => {
       fetched_at: fetchedAt
     }));
 
-    // Delete old entries for this query to ensure fresh batch
-    const { error: deleteErr } = await supabase
+    // Upsert posts to avoid duplicate primary-key conflicts when the same
+    // reddit post can appear under different queries. This updates existing
+    // rows (by `id`) or inserts new ones.
+    const { error: upsertErr } = await supabase
       .from("reddit_posts")
-      .delete()
-      .eq("query", normalized);
+      .upsert(payload, { onConflict: "id" });
 
-    if (deleteErr) {
-      console.warn("[Repository] Delete old entries warning:", deleteErr.message);
-    }
-
-    // Insert new posts
-    const { error: insertErr } = await supabase
-      .from("reddit_posts")
-      .insert(payload);
-
-    if (insertErr) throw insertErr;
+    if (upsertErr) throw upsertErr;
 
     console.log(`[Repository] Saved ${payload.length} posts for: "${normalized}" at ${new Date(fetchedAt).toISOString()}`);
 

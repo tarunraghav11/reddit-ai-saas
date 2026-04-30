@@ -1,6 +1,8 @@
-const REDDIT_BASE_URL = "https://www.reddit.com/search.json";
-const REDDIT_TIMEOUT_MS = 10000; // 10s timeout
-const REDDIT_LIMIT = 10;
+const CONFIG = {
+  BASE_URL: "https://www.reddit.com/search.json",
+  TIMEOUT_MS: parseInt(process.env.REDDIT_TIMEOUT_MS || "10000", 10),
+  LIMIT: parseInt(process.env.REDDIT_LIMIT || "10", 10)
+};
 
 /**
  * Fetch posts from Reddit API
@@ -14,10 +16,10 @@ export const fetchRedditPosts = async (query) => {
       throw new Error("Query must be a non-empty string");
     }
 
-    const url = `${REDDIT_BASE_URL}?q=${encodeURIComponent(query)}&limit=${REDDIT_LIMIT}`;
+    const url = `${CONFIG.BASE_URL}?q=${encodeURIComponent(query)}&limit=${CONFIG.LIMIT}`;
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REDDIT_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_MS);
 
     let response;
     try {
@@ -52,7 +54,7 @@ export const fetchRedditPosts = async (query) => {
 
   } catch (err) {
     if (err.name === 'AbortError') {
-      console.error("[RedditService] Request timeout after 10s");
+      console.error(`[RedditService] Request timeout after ${CONFIG.TIMEOUT_MS / 1000}s`);
       throw new Error("Reddit API request timeout");
     }
     console.error("[RedditService] Fetch error:", err.message);
