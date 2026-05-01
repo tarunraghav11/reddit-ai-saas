@@ -1,5 +1,4 @@
 import { supabase } from "../config/supabase.js";
-
 /**
  * Normalize query for consistent DB lookups
  * @param {string} query - Raw query string

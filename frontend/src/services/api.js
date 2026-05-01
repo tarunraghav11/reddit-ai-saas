@@ -1,17 +1,24 @@
-import axios from "axios";
-
 const API_URL = "http://localhost:5000";
 
 export const fetchLeads = async (query) => {
   try {
-    const res = await axios.get(`${API_URL}/reddit/search`, {
-      params: { query }
-    });
+    const token = localStorage.getItem("token");
 
-    return res.data.data;
+    const res = await fetch(
+      `${API_URL}/reddit/search?query=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    const json = await res.json();
+
+    return json.data || [];
 
   } catch (err) {
-    console.error("[API] Error:", err.message);
+    console.error("[API ERROR]:", err.message);
     return [];
   }
 };

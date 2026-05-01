@@ -5,6 +5,7 @@ import { analyzePosts } from "../services/aiService.js";
 import { isCacheFresh } from "../utils/cache.js";
 import { rankPosts, filterTopPosts } from "../services/rankingService.js";
 import { validateQuery } from "../utils/validators.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ router.get("/health", (req, res) => {
 /**
  * Reddit Search with Cache
  */
-router.get("/reddit/search", async (req, res, next) => {
+router.get("/reddit/search", protect, async (req, res, next) => {
   try {
     let query;
     try {
