@@ -38,7 +38,7 @@ export const rankPosts = (posts) => {
         (normalize(post.upvotes, maxUpvotes) * 0.7) +
         (normalize(post.comments, maxComments) * 0.3);
 
-      const recency = getRecencyScore(post.created_at);
+      const recency = getRecencyScore(post.createdAt);
 
       const intentScore = intentWeight[post.intent] || 0;
 
@@ -48,9 +48,12 @@ export const rankPosts = (posts) => {
         (engagement * 0.2) +
         (recency * 0.1);
 
+      const final = Number(finalScore.toFixed(3));
+
       return {
         ...post,
-        finalScore: Number(finalScore.toFixed(3))
+        finalScore: final,
+        opportunity: Math.round(final * 100)
       };
     });
 
@@ -62,7 +65,7 @@ export const rankPosts = (posts) => {
   }
 };
 
-    export const filterTopPosts = (posts, limit = 5) => {
+export const filterTopPosts = (posts, limit = 5) => {
   try {
     if (!Array.isArray(posts)) return [];
 

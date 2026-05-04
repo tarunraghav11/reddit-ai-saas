@@ -99,10 +99,22 @@ UNLESS there is a clear real-world problem.
 
 ---
 
-✅ OUTPUT (STRICT JSON ONLY):
+ADDITIONAL REQUIREMENT:
+
+For HIGH or MEDIUM intent posts, extract the CORE USER PAIN.
+
+Pain = the real-world problem or frustration the user is facing.
+
+Keep it short and specific.
+
+---
+
+OUTPUT FORMAT:
+
 {
   "intent": "HIGH|MEDIUM|LOW",
   "score": number between 0 and 1,
+  "pain": "short description of user problem (or null if LOW)",
   "reason": "short explanation"
 }
 `;
@@ -183,11 +195,11 @@ export const analyzeIntent = async (post) => {
     }
 
     return {
-      intent: parsed.intent,
-      score: Math.min(1, Math.max(0, Number(parsed.score) || 0)),
-      reason: parsed.reason || "AI analysis"
-    };
-
+  intent: parsed.intent,
+  score: Math.min(1, Math.max(0, Number(parsed.score) || 0)),
+  pain: parsed.pain || null,
+  reason: parsed.reason || "AI analysis"
+};
   } catch (err) {
     console.error("[AI Service] Error:", err.message);
 
@@ -196,10 +208,11 @@ export const analyzeIntent = async (post) => {
     if (fallback) return fallback;
 
     return {
-      intent: "LOW",
-      score: 0,
-      reason: "Final fallback"
-    };
+  intent: "LOW",
+  score: 0,
+  pain: null,
+  reason: "Final fallback"
+};
   }
 };
 
@@ -209,27 +222,131 @@ export const analyzeIntent = async (post) => {
 export const analyzePosts = async (posts) => {
   if (!Array.isArray(posts)) return [];
 
-  const results = await Promise.all(
-    posts.map(async (post) => {
-      try {
-        const analysis = await analyzeIntent(post);
+  try {
+    // 1. Analyze all posts
+    const results = await Promise.all(
+      posts.map(async (post) => {
+        try {
+          const analysis = await analyzeIntent(post);
 
-        return {
-          ...post,
-          intent: analysis.intent,
-          score: analysis.score,
-          reason: analysis.reason
-        };
-      } catch (err) {
-        return {
-          ...post,
-          intent: "LOW",
-          score: 0,
-          reason: "Batch error"
-        };
-      }
-    })
-  );
+          return {
+  ...post,
+  intent: analysis.intent,
+  score: analysis.score,
+  pain: analysis.pain,
+  reason: analysis.reason
+};
+        } catch (err) {
+          return {
+            ...post,
+            intent: "LOW",
+            score: 0,
+            reason: "Batch error"
+          };
+        }
+      })
+    );
 
-  return results;
+    // 2. Filter AFTER analysis
+    const filtered = results.filter(
+      (p) => p.intent === "HIGH" || p.intent === "MEDIUM"
+    );
+
+    return filtered;
+
+  } catch (err) {
+    console.error("[AI Service] Batch Error:", err.message);
+    return [];
+  }
+};
+
+export const extractKeywordsFromText = async (content) => {
+  try {
+    if (!content || typeof content !== "string") {
+      throw new Error("Content must be a non-empty string");
+    }
+
+    const client = getGroqClient();
+
+    const prompt = `
+You are a SaaS growth expert.
+
+Analyze the following website content and extract:
+
+1. Product category
+2. Main pain points users face
+3. 6-10 HIGH QUALITY Reddit search queries
+
+IMPORTANT:
+- Focus on real-world problems
+- Focus on buying intent
+- Generate queries like:
+  - "alternatives to X"
+  - "how to solve Y"
+  - "tools for Z"
+  - "problem with X"
+  - "best way to do Y"
+
+STRICT RULE:
+Only generate keywords directly related to:
+- marketing
+- SaaS tools
+- Reddit lead generation
+- business workflows
+
+DO NOT generate generic queries like:
+- personal finance
+- unrelated domains
+
+RETURN STRICT JSON:
+
+{
+  "category": "",
+  "painPoints": [],
+  "keywords": []
+}
+
+Content:
+${content.slice(0, 4000)}
+`;
+
+    const response = await Promise.race([
+      client.chat.completions.create({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: 300,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: prompt }
+        ]
+      }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Keyword extraction timeout")), 7000)
+      )
+    ]);
+
+    const text = response.choices?.[0]?.message?.content;
+
+    if (!text) throw new Error("Empty AI response");
+
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("Invalid JSON");
+
+    const parsed = JSON.parse(match[0]);
+
+    return {
+      category: parsed.category || "Unknown",
+      painPoints: parsed.painPoints || [],
+      keywords: (parsed.keywords || []).slice(0, 10)
+    };
+
+  } catch (err) {
+    console.error("[AI Keyword Extraction] Error:", err.message);
+
+    // fallback minimal keywords
+    return {
+      category: "Unknown",
+      painPoints: [],
+      keywords: ["software problems", "tools for business"]
+    };
+  }
 };
