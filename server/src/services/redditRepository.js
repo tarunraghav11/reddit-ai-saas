@@ -1,4 +1,5 @@
 import { supabase } from "../config/supabase.js";
+import { logger } from "../utils/logger.js";
 /**
  * Normalize query for consistent DB lookups
  * @param {string} query - Raw query string
@@ -28,11 +29,11 @@ export const getCachedPosts = async (query) => {
 
     if (error) throw error;
 
-    console.log(`[Repository] Retrieved ${data?.length || 0} cached posts for: "${normalized}"`);
+    logger.info(`[Repository] Retrieved ${data?.length || 0} cached posts for: "${normalized}"`);
     return data || [];
 
   } catch (err) {
-    console.error("[Repository] Fetch error:", err.message);
+    logger.error(`[Repository] Fetch error: ${err.message}`);
     throw err;
   }
 };
@@ -45,7 +46,7 @@ export const getCachedPosts = async (query) => {
 export const savePosts = async (posts, query) => {
   try {
     if (!Array.isArray(posts) || posts.length === 0) {
-      console.warn("[Repository] No posts to save");
+      logger.warn("[Repository] No posts to save");
       return;
     }
 
@@ -73,10 +74,10 @@ export const savePosts = async (posts, query) => {
 
     if (upsertErr) throw upsertErr;
 
-    console.log(`[Repository] Saved ${payload.length} posts for: "${normalized}" at ${new Date(fetchedAt).toISOString()}`);
+    logger.info(`[Repository] Saved ${payload.length} posts for: "${normalized}" at ${new Date(fetchedAt).toISOString()}`);
 
   } catch (err) {
-    console.error("[Repository] Save error:", err.message);
+    logger.error(`[Repository] Save error: ${err.message}`);
     throw err;
   }
 };

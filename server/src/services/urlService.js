@@ -1,7 +1,18 @@
 import axios from "axios";
+import axiosRetry from "axios-retry";
 import * as cheerio from "cheerio";
+import { logger } from "../utils/logger.js";
+
 const REQUEST_TIMEOUT = 5000; // 5 seconds
 const MAX_CONTENT_LENGTH = 5000; // limit text size
+
+axiosRetry(axios, {
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay,
+  onRetry: (retryCount, error, requestConfig) => {
+    logger.warn(`[URL Service] Retrying request (attempt ${retryCount}) due to ${error.message}`);
+  }
+});
 
 /**
  * Clean extracted text
@@ -29,7 +40,7 @@ const extractContent = ($) => {
     return text.slice(0, MAX_CONTENT_LENGTH);
 
   } catch (err) {
-    console.error("[URL Service] Extraction error:", err.message);
+    logger.error(`[URL Service] Extraction error: ${err.message}`);
     return "";
   }
 };
@@ -60,15 +71,15 @@ export const scrapeUrl = async (url) => {
     const content = extractContent($);
 
     if (!content || content.length < 50) {
-      console.warn(`[URL Service] Low content from: ${url}`);
+      logger.warn(`[URL Service] Low content from: ${url}`);
     }
 
-    console.log(`[URL Service] Scraped: ${url}`);
+    logger.info(`[URL Service] Scraped: ${url}`);
 
     return content;
 
   } catch (err) {
-    console.error(`[URL Service] Failed for ${url}:`, err.message);
+    logger.error(`[URL Service] Failed for ${url}: ${err.message}`);
 
     // IMPORTANT: don't crash pipeline
     return null;
@@ -105,7 +116,7 @@ export const scrapeMultipleUrls = async (urls = []) => {
     return validContents;
 
   } catch (err) {
-    console.error("[URL Service] Multiple scrape error:", err.message);
+    logger.error(`[URL Service] Multiple scrape error: ${err.message}`);
     throw err;
   }
 };

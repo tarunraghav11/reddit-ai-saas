@@ -1,4 +1,5 @@
 import Groq from "groq-sdk";
+import { logger } from "../utils/logger.js";
 
 let groq = null;
 
@@ -9,7 +10,7 @@ const getGroqClient = () => {
       throw new Error("GROQ_API_KEY not set");
     }
 
-    console.log("[AI Service] Groq initialized");
+    logger.info("[AI Service] Groq initialized");
     groq = new Groq({ apiKey });
   }
   return groq;
@@ -201,7 +202,7 @@ export const analyzeIntent = async (post) => {
   reason: parsed.reason || "AI analysis"
 };
   } catch (err) {
-    console.error("[AI Service] Error:", err.message);
+    logger.error(`[AI Service] Error: ${err.message}`);
 
     // 🔥 FALLBACK ONLY HERE
     const fallback = detectIntentRule(post.title);
@@ -247,15 +248,11 @@ export const analyzePosts = async (posts) => {
       })
     );
 
-    // 2. Filter AFTER analysis
-    const filtered = results.filter(
-      (p) => p.intent === "HIGH" || p.intent === "MEDIUM"
-    );
-
-    return filtered;
+    // Return all results so rankingService can decide what to filter
+    return results;
 
   } catch (err) {
-    console.error("[AI Service] Batch Error:", err.message);
+    logger.error(`[AI Service] Batch Error: ${err.message}`);
     return [];
   }
 };
@@ -340,7 +337,7 @@ ${content.slice(0, 4000)}
     };
 
   } catch (err) {
-    console.error("[AI Keyword Extraction] Error:", err.message);
+    logger.error(`[AI Keyword Extraction] Error: ${err.message}`);
 
     // fallback minimal keywords
     return {

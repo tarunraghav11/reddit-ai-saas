@@ -1,17 +1,31 @@
 import express from "express";
+import rateLimit from "express-rate-limit";
 import { fetchRedditPosts } from "../services/redditService.js";
 import { savePosts, getCachedPosts } from "../services/redditRepository.js";
 import { analyzePosts } from "../services/aiService.js";
 import { isCacheFresh } from "../utils/cache.js";
 import { rankPosts, filterTopPosts } from "../services/rankingService.js";
-import { validateQuery } from "../utils/validators.js";
+import { validateQuery, validateUrlsArray } from "../utils/validators.js";
 import { protect } from "../middleware/authMiddleware.js";
 
 import { validateUrl } from "../utils/urlValidator.js";
 import { scrapeMultipleUrls } from "../services/urlService.js";
 import { extractKeywordsFromText } from "../services/aiService.js";
+import { logger } from "../utils/logger.js";
 
 const router = express.Router();
+
+const searchLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
+  message: { success: false, message: "Too many requests from this IP, please try again after 15 minutes" },
+});
+
+const discoverLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { success: false, message: "Too many discover requests from this IP, please try again after 15 minutes" },
+});
 
 /**
  * Health Check
@@ -26,7 +40,7 @@ router.get("/health", (req, res) => {
 /**
  * Reddit Search with Cache
  */
-router.get("/reddit/search", protect, async (req, res, next) => {
+router.get("/reddit/search", protect, searchLimiter, async (req, res, next) => {
   try {
     let query;
     try {
@@ -83,28 +97,23 @@ router.get("/reddit/search", protect, async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error("[Routes] Search error:", err.message);
+    logger.error(`[Routes] Search error: ${err.message}`);
     next(err);
   }
 });
 
 
-router.post("/leads/discover", protect, async (req, res, next) => {
+router.post("/leads/discover", protect, discoverLimiter, async (req, res, next) => {
   try {
-    const { urls } = req.body;
-
+    let urls;
+    
     // 1. Validate input
-    if (!Array.isArray(urls) || urls.length === 0) {
+    try {
+      urls = validateUrlsArray(req.body.urls);
+    } catch (err) {
       return res.status(400).json({
         success: false,
-        message: "URLs must be a non-empty array"
-      });
-    }
-
-    if (urls.length > 5) {
-      return res.status(400).json({
-        success: false,
-        message: "Maximum 5 URLs allowed"
+        message: err.message
       });
     }
 
@@ -188,7 +197,7 @@ router.post("/leads/discover", protect, async (req, res, next) => {
     });
 
   } catch (err) {
-    console.error("[Discover Route] Error:", err.message);
+    logger.error(`[Discover Route] Error: ${err.message}`);
     next(err);
   }
 });
