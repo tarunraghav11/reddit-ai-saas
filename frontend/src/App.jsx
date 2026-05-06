@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import SearchBar from "./components/SearchBar";
 import Results from "./components/Results";
-import { fetchLeads, discoverLeads } from "./services/api";
+import { fetchLeads, discoverLeads, checkJobStatus } from "./services/api";
 import { getSession, loginWithGoogle, logout } from "./auth/authService";
 
 function App() {
@@ -11,6 +11,7 @@ function App() {
   const [mode, setMode] = useState("search");
   const [info, setInfo] = useState(null);
   const [error, setError] = useState("");
+  const [progressMsg, setProgressMsg] = useState("");
 
   //  Initialize Auth
   useEffect(() => {
@@ -58,24 +59,59 @@ function App() {
   const handleDiscover = async (urls) => {
     setError("");
     setLoading(true);
+    setProgressMsg("Starting background job...");
+    setPosts([]);
+    setInfo(null);
+    
     const response = await discoverLeads(urls);
-    setLoading(false);
 
-    if (!response.success) {
-      setError(response.message || "Unable to discover leads");
-      setPosts([]);
-      setInfo(null);
+    if (!response.success || !response.jobId) {
+      setLoading(false);
+      setProgressMsg("");
+      setError(response.message || "Unable to start discovery job");
       return;
     }
 
-    setPosts(response.data || []);
-    setInfo({
-      source: "discover",
-      count: response.count,
-      keywords: response.keywords,
-      category: response.category,
-      painPoints: response.painPoints
-    });
+    const jobId = response.jobId;
+
+    // Polling function
+    const pollStatus = async () => {
+      const statusRes = await checkJobStatus(jobId);
+      
+      if (!statusRes.success) {
+        setLoading(false);
+        setProgressMsg("");
+        setError(statusRes.message || "Error checking job status");
+        return;
+      }
+
+      if (statusRes.status === 'completed') {
+        setLoading(false);
+        setProgressMsg("");
+        setPosts(statusRes.result?.data || []);
+        setInfo({
+          source: "discover",
+          count: statusRes.result?.count || 0,
+          keywords: statusRes.result?.keywords || [],
+          category: statusRes.result?.category || "",
+          painPoints: statusRes.result?.painPoints || []
+        });
+        return;
+      }
+
+      if (statusRes.status === 'failed') {
+        setLoading(false);
+        setProgressMsg("");
+        setError(statusRes.message || "Background job failed");
+        return;
+      }
+
+      // Update progress message and keep polling
+      setProgressMsg(`${statusRes.progress}% - ${statusRes.message}`);
+      setTimeout(pollStatus, 2000);
+    };
+
+    pollStatus();
   };
 
   return (
@@ -137,7 +173,7 @@ function App() {
           />
 
           {error && <p style={{ color: "#c00", marginTop: "15px" }}>{error}</p>}
-          {loading && <p style={{ marginTop: "15px" }}>Loading...</p>}
+          {loading && <p style={{ marginTop: "15px", fontWeight: "bold", color: "#0b5fff" }}>{progressMsg || "Loading..."}</p>}
 
           <Results posts={posts} info={info} />
         </>

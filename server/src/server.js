@@ -1,10 +1,8 @@
-import dotenv from "dotenv";
-
-// Load environment variables FIRST, before any other imports
-dotenv.config();
+import "dotenv/config.js";
 
 import app from "./app.js";
 import { logger } from "./utils/logger.js";
+import "./jobs/discoverWorker.js";
 
 const PORT = process.env.PORT || 5000;
 

@@ -69,3 +69,27 @@ export const discoverLeads = async (urls) => {
     };
   }
 };
+
+export const checkJobStatus = async (jobId) => {
+  try {
+    const token = localStorage.getItem("token");
+
+    const res = await fetch(`${API_URL}/leads/discover/${jobId}/status`, {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+
+    const json = await safeJson(res);
+    return {
+      success: res.ok && json.success,
+      ...json
+    };
+  } catch (err) {
+    console.error("[API ERROR]:", err.message);
+    return {
+      success: false,
+      message: "Error checking job status"
+    };
+  }
+};

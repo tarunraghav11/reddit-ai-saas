@@ -12,6 +12,7 @@ import { validateUrl } from "../utils/urlValidator.js";
 import { scrapeMultipleUrls } from "../services/urlService.js";
 import { extractKeywordsFromText } from "../services/aiService.js";
 import { logger } from "../utils/logger.js";
+import { addDiscoverJob, discoverQueue } from "../jobs/discoverQueue.js";
 
 const router = express.Router();
 
@@ -117,87 +118,63 @@ router.post("/leads/discover", protect, discoverLimiter, async (req, res, next) 
       });
     }
 
-    // 2. Validate URLs (parallel)
-    let validUrls;
-    try {
-      validUrls = await Promise.all(urls.map(validateUrl));
-    } catch (err) {
-      return res.status(400).json({
-        success: false,
-        message: err.message
-      });
-    }
-
-    // 3. Scrape content
-    let contents;
-    try {
-      contents = await scrapeMultipleUrls(validUrls);
-    } catch (err) {
-      return res.status(500).json({
-        success: false,
-        message: "Failed to scrape URLs"
-      });
-    }
-
-    const mergedContent = contents.join(" ");
-
-    // 4. Extract keywords (AI)
-    const keywordData = await extractKeywordsFromText(mergedContent);
-
-    const keywords = keywordData.keywords || [];
-
-    if (keywords.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "No keywords extracted",
-        data: []
-      });
-    }
-
-    // 5. Fetch Reddit posts (parallel)
-    const redditResults = await Promise.all(
-      keywords.map(async (keyword) => {
-        try {
-          return await fetchRedditPosts(keyword);
-        } catch {
-          return [];
-        }
-      })
-    );
-
-    let posts = redditResults.flat();
-
-    // 6. Deduplicate posts
-    const uniqueMap = new Map();
-    posts.forEach(post => {
-      if (!uniqueMap.has(post.id)) {
-        uniqueMap.set(post.id, post);
-      }
-    });
-
-    posts = Array.from(uniqueMap.values());
-
-    // 7. Limit posts (IMPORTANT for cost)
-    posts = posts.slice(0, 15);
-
-    // 8. Analyze intent (AI)
-    const analyzedPosts = await analyzePosts(posts);
-
-    // 9. Rank + filter
-    const rankedPosts = rankPosts(analyzedPosts);
-    const topPosts = filterTopPosts(rankedPosts, 10);
-
-    return res.status(200).json({
+    // 2. Add to background queue
+    const jobId = await addDiscoverJob(urls);
+    
+    return res.status(202).json({
       success: true,
-      keywords,
-      category: keywordData.category,
-      painPoints: keywordData.painPoints,
-      count: topPosts.length,
-      data: topPosts
+      message: "Lead discovery job started",
+      jobId
     });
 
   } catch (err) {
     logger.error(`[Discover Route] Error: ${err.message}`);
+    next(err);
+  }
+});
+
+/**
+ * Polling Route for Background Job Status
+ */
+router.get("/leads/discover/:jobId/status", protect, async (req, res, next) => {
+  try {
+    const { jobId } = req.params;
+    const job = await discoverQueue.getJob(jobId);
+
+    if (!job) {
+      return res.status(404).json({ success: false, message: "Job not found" });
+    }
+
+    const state = await job.getState();
+    const progress = job.progress;
+    
+    if (state === 'completed') {
+      return res.status(200).json({
+        success: true,
+        status: 'completed',
+        progress: 100,
+        result: job.returnvalue
+      });
+    }
+
+    if (state === 'failed') {
+      return res.status(500).json({
+        success: false,
+        status: 'failed',
+        message: job.failedReason || "Job failed during processing"
+      });
+    }
+
+    // Active, waiting, or delayed
+    return res.status(200).json({
+      success: true,
+      status: state,
+      progress: progress?.step || 0,
+      message: progress?.message || "Waiting in queue..."
+    });
+
+  } catch (err) {
+    logger.error(`[Job Status Route] Error: ${err.message}`);
     next(err);
   }
 });
