@@ -3,7 +3,8 @@ import { logger } from "../utils/logger.js";
 const CONFIG = {
   BASE_URL: "https://www.reddit.com/search.json",
   TIMEOUT_MS: parseInt(process.env.REDDIT_TIMEOUT_MS || "10000", 10),
-  LIMIT: parseInt(process.env.REDDIT_LIMIT || "25", 10)
+  LIMIT: parseInt(process.env.REDDIT_LIMIT || "25", 10),
+  USER_AGENT: process.env.REDDIT_USER_AGENT || "web:leadradar:v1.0.0 (by /u/tarunraghav11)"
 };
 
 const fetchWithRetry = async (url, options, retries = 3, delayMs = 1000) => {
@@ -43,7 +44,12 @@ export const fetchRedditPosts = async (query) => {
 
     let response;
     try {
-      response = await fetchWithRetry(url, { signal: controller.signal });
+      response = await fetchWithRetry(url, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": CONFIG.USER_AGENT
+        }
+      });
     } finally {
       clearTimeout(timeoutId);
     }

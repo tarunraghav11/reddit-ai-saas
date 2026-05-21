@@ -12,6 +12,7 @@ import { isCacheFresh } from "../utils/cache.js";
 import { rankPosts, filterTopPosts } from "../services/rankingService.js";
 import { validateQuery, validateUrlsArray } from "../utils/validators.js";
 import { protect } from "../middleware/authMiddleware.js";
+import { checkQuota } from "../middleware/quotaMiddleware.js";
 import { validateUrl } from "../utils/urlValidator.js";
 import { scrapeMultipleUrls } from "../services/urlService.js";
 import { extractKeywordsFromText } from "../services/aiService.js";
@@ -56,7 +57,7 @@ router.get("/health", (req, res) => {
  *  4. Rank, filter, save, and return top results
  *  5. Persist session for the authenticated user
  */
-router.get("/reddit/search", protect, searchLimiter, async (req, res, next) => {
+router.get("/reddit/search", protect, searchLimiter, checkQuota("search"), async (req, res, next) => {
   try {
     let query;
     try {
@@ -160,6 +161,7 @@ router.post(
   "/leads/discover",
   protect,
   discoverLimiter,
+  checkQuota("discover"),
   async (req, res, next) => {
     try {
       let urls;

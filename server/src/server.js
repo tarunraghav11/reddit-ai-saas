@@ -3,6 +3,7 @@ import "dotenv/config.js";
 import app from "./app.js";
 import { logger } from "./utils/logger.js";
 import "./jobs/discoverWorker.js";
+import "./jobs/cleanupJob.js";
 
 const PORT = process.env.PORT || 5000;
 

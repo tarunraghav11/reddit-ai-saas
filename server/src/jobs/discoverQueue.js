@@ -9,7 +9,9 @@ export const addDiscoverJob = async (urls, userId = null) => {
     backoff: {
       type: "exponential",
       delay: 30000      // 30s base delay, so retry happens at ~30s then ~60s
-    }
+    },
+    removeOnComplete: false,
+    removeOnFail: false
   });
   return job.id;
 };

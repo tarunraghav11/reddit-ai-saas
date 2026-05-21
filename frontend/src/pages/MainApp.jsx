@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import Sidebar from "../components/Sidebar";
 import Results from "../components/Results";
 import {
@@ -16,6 +16,7 @@ export default function MainApp({ user }) {
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState("");
   const [progressMsg, setProgressMsg]   = useState("");
+  const [progressPercent, setProgressPercent] = useState(0);
   const [mode, setMode]                 = useState("search");
 
   // inline input state
@@ -29,6 +30,30 @@ export default function MainApp({ user }) {
   const [activeSessionMeta, setActiveSessionMeta] = useState(null);
   const [sidebarOpen, setSidebarOpen]           = useState(true);
 
+  // Refs for tracking/canceling background polling & unmount cleanup
+  const pollTimeoutRef = useRef(null);
+  const isMountedRef = useRef(true);
+
+  const cancelPolling = useCallback(() => {
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+    setProgressMsg("");
+    setProgressPercent(0);
+  }, []);
+
+  // Track component mount status
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (pollTimeoutRef.current) {
+        clearTimeout(pollTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const loadHistory = useCallback(async () => {
     if (!user) return;
     setHistoryLoading(true);
@@ -37,12 +62,14 @@ export default function MainApp({ user }) {
     setHistoryLoading(false);
   }, [user]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
   // ── Search ──────────────────────────────────────────────────
   const handleSearch = async (e) => {
     e?.preventDefault();
     if (!query.trim() || loading) return;
+    cancelPolling();
     setError(""); setLoading(true);
     setActiveSessionId(null); setActiveSessionMeta(null);
     setPosts([]); setInfo(null);
@@ -59,30 +86,39 @@ export default function MainApp({ user }) {
     e?.preventDefault();
     const list = urls.split(/\r?\n|,/).map(u => u.trim()).filter(Boolean).slice(0, 5);
     if (list.length === 0 || loading) return;
-    setError(""); setLoading(true); setProgressMsg("Starting background job...");
+    cancelPolling();
+    setError(""); setLoading(true); setProgressMsg("Starting background job..."); setProgressPercent(0);
     setPosts([]); setInfo(null); setActiveSessionId(null);
     const response = await discoverLeads(list);
     if (!response.success || !response.jobId) {
       setLoading(false); setProgressMsg("");
       setError(response.message || "Unable to start discovery job"); return;
     }
+    // NOTE (Scaling Roadmap): This uses 2-second short polling to check job status.
+    // While suitable for MVP / low traffic, as the application scales, this should be migrated to:
+    // 1. Server-Sent Events (SSE) for one-way server-to-client updates.
+    // 2. WebSockets if bi-directional interaction is needed.
+    // This will significantly reduce the number of HTTP requests and database queries on the backend.
     const poll = async () => {
       const statusRes = await checkJobStatus(response.jobId);
-      if (!statusRes.success) { setLoading(false); setProgressMsg(""); setError(statusRes.message || "Error"); return; }
+      if (!isMountedRef.current) return;
+      if (!statusRes.success) { setLoading(false); setProgressMsg(""); setProgressPercent(0); setError(statusRes.message || "Error"); return; }
       if (statusRes.status === "completed") {
-        setLoading(false); setProgressMsg("");
+        setLoading(false); setProgressMsg(""); setProgressPercent(0);
         setPosts(statusRes.result?.data || []);
         setInfo({ source: "discover", count: statusRes.result?.count || 0, keywords: statusRes.result?.keywords || [], category: statusRes.result?.category || "", painPoints: statusRes.result?.painPoints || [] });
         loadHistory(); return;
       }
-      if (statusRes.status === "failed") { setLoading(false); setProgressMsg(""); setError(statusRes.message || "Job failed"); return; }
-      setProgressMsg(`${statusRes.progress}% — ${statusRes.message}`);
-      setTimeout(poll, 2000);
+      if (statusRes.status === "failed") { setLoading(false); setProgressMsg(""); setProgressPercent(0); setError(statusRes.message || "Job failed"); return; }
+      setProgressPercent(statusRes.progress || 0);
+      setProgressMsg(statusRes.message || "Processing...");
+      pollTimeoutRef.current = setTimeout(poll, 2000);
     };
     poll();
   };
 
   const handleSelectSession = async (session) => {
+    cancelPolling();
     setError(""); setLoading(true);
     setActiveSessionId(session.id); setActiveSessionMeta(session);
     setPosts([]); setInfo(null);
@@ -102,6 +138,7 @@ export default function MainApp({ user }) {
   };
 
   const handleNewSearch = () => {
+    cancelPolling();
     setActiveSessionId(null); setActiveSessionMeta(null);
     setPosts([]); setInfo(null); setError(""); setQuery(""); setUrls("");
   };
@@ -325,7 +362,7 @@ export default function MainApp({ user }) {
               <div className="dash-loading-text">{progressMsg || "AI is analyzing Reddit posts…"}</div>
               {progressMsg && (
                 <div className="progress-bar-wrap" style={{ maxWidth: 400, width: "100%" }}>
-                  <div className="progress-bar" style={{ width: `${parseInt(progressMsg) || 30}%` }} />
+                  <div className="progress-bar" style={{ width: `${progressPercent}%` }} />
                 </div>
               )}
             </div>
@@ -337,12 +374,7 @@ export default function MainApp({ user }) {
           )}
 
           {/* ── RESULTS ─────────────────────────────────── */}
-          {!loading && hasResults && (
-            <Results posts={posts} info={info} sessionMeta={activeSessionMeta} />
-          )}
-
-          {/* Session results (no search bar shown) */}
-          {!loading && activeSessionMeta && (
+          {!loading && (hasResults || activeSessionMeta) && (
             <Results posts={posts} info={info} sessionMeta={activeSessionMeta} />
           )}
         </div>

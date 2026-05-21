@@ -287,3 +287,66 @@ export const deleteLeadSession = async (sessionId, userId) => {
     throw err;
   }
 };
+
+/**
+ * Clean up old cached reddit posts that are not linked to any active user lead sessions.
+ * Default max age is 30 days. Deletes in batches of 100 to avoid query size limits.
+ *
+ * @param {number} maxAgeMs - Maximum age of post in milliseconds (default 30 days)
+ * @returns {Promise<number>} Number of deleted posts
+ */
+export const cleanOldUnreferencedPosts = async (maxAgeMs = 30 * 24 * 60 * 60 * 1000) => {
+  try {
+    const cutoff = Date.now() - maxAgeMs;
+
+    // 1. Get all post IDs that are older than cutoff
+    const { data: oldPosts, error: oldErr } = await supabase
+      .from("reddit_posts")
+      .select("id")
+      .lt("fetched_at", cutoff);
+
+    if (oldErr) throw oldErr;
+    if (!oldPosts || oldPosts.length === 0) {
+      logger.info("[Cleanup] No old posts found to clean up.");
+      return 0;
+    }
+
+    const oldIds = oldPosts.map(p => p.id);
+
+    // 2. Get active session lead IDs
+    const { data: activeLeads, error: selectErr } = await supabase
+      .from("session_leads")
+      .select("post_id");
+
+    if (selectErr) throw selectErr;
+
+    const activeSet = new Set((activeLeads || []).map(row => row.post_id));
+
+    // 3. Find IDs to delete (oldIds not in activeSet)
+    const idsToDelete = oldIds.filter(id => !activeSet.has(id));
+
+    if (idsToDelete.length === 0) {
+      logger.info("[Cleanup] All old posts are referenced in active sessions. Skipping delete.");
+      return 0;
+    }
+
+    // 4. Delete in batches of 100
+    const batchSize = 100;
+    let deletedCount = 0;
+    for (let i = 0; i < idsToDelete.length; i += batchSize) {
+      const batch = idsToDelete.slice(i, i + batchSize);
+      const { error: deleteErr } = await supabase
+        .from("reddit_posts")
+        .delete()
+        .in("id", batch);
+      if (deleteErr) throw deleteErr;
+      deletedCount += batch.length;
+    }
+
+    logger.info(`[Cleanup] Successfully deleted ${deletedCount} unreferenced old posts.`);
+    return deletedCount;
+  } catch (err) {
+    logger.error(`[Cleanup] Error cleaning old posts: ${err.message}`);
+    return 0;
+  }
+};
