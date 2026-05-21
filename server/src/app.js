@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import routes from "./routes/redditRoutes.js";
+import historyRoutes from "./routes/leadsHistoryRoutes.js";
 import { logger } from "./utils/logger.js";
 
 const app = express();
@@ -22,6 +23,7 @@ app.use(cors({
  * Routes
  */
 app.use("/", routes);
+app.use("/", historyRoutes);
 
 /**
  * Global Error Handler

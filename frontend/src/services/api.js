@@ -4,92 +4,97 @@ const safeJson = async (response) => {
   try {
     return await response.json();
   } catch {
-    return {
-      success: false,
-      message: "Invalid JSON response from API",
-      data: []
-    };
+    return { success: false, message: "Invalid JSON response from API", data: [] };
   }
 };
 
+const authHeaders = () => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+// ── Lead Search ────────────────────────────────────────────
 export const fetchLeads = async (query) => {
   try {
-    const token = localStorage.getItem("token");
-
     const res = await fetch(
       `${API_URL}/reddit/search?query=${encodeURIComponent(query)}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
+      { headers: authHeaders() }
     );
-
     const json = await safeJson(res);
-
-    return {
-      success: res.ok && json.success,
-      ...json
-    };
+    return { success: res.ok && json.success, ...json };
   } catch (err) {
-    console.error("[API ERROR]:", err.message);
-    return {
-      success: false,
-      message: err.message || "Unable to fetch leads",
-      data: []
-    };
+    console.error("[API] fetchLeads:", err.message);
+    return { success: false, message: err.message || "Unable to fetch leads", data: [] };
   }
 };
 
+// ── Discover from URLs ─────────────────────────────────────
 export const discoverLeads = async (urls) => {
   try {
-    const token = localStorage.getItem("token");
-
     const res = await fetch(`${API_URL}/leads/discover`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      },
-      body: JSON.stringify({ urls })
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ urls }),
     });
-
     const json = await safeJson(res);
-
-    return {
-      success: res.ok && json.success,
-      ...json
-    };
+    return { success: res.ok && json.success, ...json };
   } catch (err) {
-    console.error("[API ERROR]:", err.message);
-    return {
-      success: false,
-      message: err.message || "Unable to discover leads",
-      data: []
-    };
+    console.error("[API] discoverLeads:", err.message);
+    return { success: false, message: err.message || "Unable to discover leads", data: [] };
   }
 };
 
+// ── Job Polling ────────────────────────────────────────────
 export const checkJobStatus = async (jobId) => {
   try {
-    const token = localStorage.getItem("token");
-
     const res = await fetch(`${API_URL}/leads/discover/${jobId}/status`, {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {})
-      }
+      headers: authHeaders(),
     });
-
     const json = await safeJson(res);
-    return {
-      success: res.ok && json.success,
-      ...json
-    };
+    return { success: res.ok && json.success, ...json };
   } catch (err) {
-    console.error("[API ERROR]:", err.message);
-    return {
-      success: false,
-      message: "Error checking job status"
-    };
+    console.error("[API] checkJobStatus:", err.message);
+    return { success: false, message: "Error checking job status" };
+  }
+};
+
+// ── Lead History ───────────────────────────────────────────
+export const getLeadHistory = async (page = 0) => {
+  try {
+    const res = await fetch(`${API_URL}/leads/history?page=${page}&limit=25`, {
+      headers: authHeaders(),
+    });
+    const json = await safeJson(res);
+    return { success: res.ok && json.success, ...json };
+  } catch (err) {
+    console.error("[API] getLeadHistory:", err.message);
+    return { success: false, data: [] };
+  }
+};
+
+export const getSessionLeads = async (sessionId) => {
+  try {
+    const res = await fetch(`${API_URL}/leads/history/${sessionId}`, {
+      headers: authHeaders(),
+    });
+    const json = await safeJson(res);
+    return { success: res.ok && json.success, ...json };
+  } catch (err) {
+    console.error("[API] getSessionLeads:", err.message);
+    return { success: false, data: [] };
+  }
+};
+
+export const deleteSession = async (sessionId) => {
+  try {
+    const res = await fetch(`${API_URL}/leads/history/${sessionId}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
+    const json = await safeJson(res);
+    return { success: res.ok && json.success, ...json };
+  } catch (err) {
+    console.error("[API] deleteSession:", err.message);
+    return { success: false };
   }
 };

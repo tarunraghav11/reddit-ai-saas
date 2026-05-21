@@ -1,13 +1,17 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { fetchRedditPosts } from "../services/redditService.js";
-import { savePosts, getCachedPosts } from "../services/redditRepository.js";
+import {
+  savePosts,
+  getCachedPosts,
+  getAnalyzedPostsByIds,
+  saveLeadSession,
+} from "../services/redditRepository.js";
 import { analyzePosts } from "../services/aiService.js";
 import { isCacheFresh } from "../utils/cache.js";
 import { rankPosts, filterTopPosts } from "../services/rankingService.js";
 import { validateQuery, validateUrlsArray } from "../utils/validators.js";
 import { protect } from "../middleware/authMiddleware.js";
-
 import { validateUrl } from "../utils/urlValidator.js";
 import { scrapeMultipleUrls } from "../services/urlService.js";
 import { extractKeywordsFromText } from "../services/aiService.js";
@@ -17,29 +21,40 @@ import { addDiscoverJob, discoverQueue } from "../jobs/discoverQueue.js";
 const router = express.Router();
 
 const searchLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes)
-  message: { success: false, message: "Too many requests from this IP, please try again after 15 minutes" },
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: {
+    success: false,
+    message: "Too many requests from this IP, please try again after 15 minutes",
+  },
 });
 
 const discoverLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  message: { success: false, message: "Too many discover requests from this IP, please try again after 15 minutes" },
+  message: {
+    success: false,
+    message:
+      "Too many discover requests from this IP, please try again after 15 minutes",
+  },
 });
 
 /**
  * Health Check
  */
 router.get("/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Server is running"
-  });
+  res.json({ success: true, message: "Server is running" });
 });
 
 /**
- * Reddit Search with Cache
+ * Reddit Search with Cache + AI Skip Optimization
+ *
+ * Flow:
+ *  1. Check DB cache → if fresh, use cached posts
+ *  2. For posts without AI data → send only those to AI (cost optimization)
+ *  3. Merge pre-analyzed + freshly analyzed posts
+ *  4. Rank, filter, save, and return top results
+ *  5. Persist session for the authenticated user
  */
 router.get("/reddit/search", protect, searchLimiter, async (req, res, next) => {
   try {
@@ -47,137 +62,173 @@ router.get("/reddit/search", protect, searchLimiter, async (req, res, next) => {
     try {
       query = validateQuery(req.query.query);
     } catch (err) {
-      return res.status(400).json({
-        success: false,
-        message: err.message
-      });
+      return res.status(400).json({ success: false, message: err.message });
     }
 
-    // Check cache
+    const userId = req.user?.id;
+    let sourcePosts = [];
+    let cacheSource = "api";
+
+    // ── Step 1: Check DB cache ──────────────────────────────────────────
     const cachedPosts = await getCachedPosts(query);
-    if (isCacheFresh(cachedPosts)) {
-      // Analyze posts with AI
-      const analyzedPosts = await analyzePosts(cachedPosts);
-      const rankedPosts = rankPosts(analyzedPosts);
-      const topPosts = filterTopPosts(rankedPosts, 5);
-      return res.status(200).json({
-        success: true,
-        source: "cache",
-        count: topPosts.length,
-        data: topPosts
-      });
+    const cacheHit = isCacheFresh(cachedPosts);
+
+    if (cacheHit) {
+      sourcePosts = cachedPosts;
+      cacheSource = "cache";
+      logger.info(`[Search] Cache HIT for "${query}" — ${sourcePosts.length} posts`);
+    } else {
+      // ── Step 2: Fetch fresh posts from Reddit ───────────────────────
+      const freshPosts = await fetchRedditPosts(query);
+
+      if (!Array.isArray(freshPosts) || freshPosts.length === 0) {
+        return res.status(200).json({
+          success: true,
+          source: "api",
+          message: "No posts found",
+          count: 0,
+          data: [],
+        });
+      }
+
+      // Save raw posts first (no AI data yet) to avoid losing them
+      await savePosts(freshPosts, query, userId);
+      sourcePosts = freshPosts;
+      cacheSource = "api";
     }
 
-    // Fetch fresh data from Reddit
-    const posts = await fetchRedditPosts(query);
+    // ── Step 3: AI Skip Optimization ───────────────────────────────────
+    // Check which of these posts already have AI analysis stored in DB
+    const allIds = sourcePosts.map((p) => p.id);
+    const preAnalyzed = await getAnalyzedPostsByIds(allIds);
+    const preAnalyzedMap = new Map(preAnalyzed.map((p) => [p.id, p]));
 
-    if (!Array.isArray(posts) || posts.length === 0) {
-      return res.status(200).json({
-        success: true,
-        source: "api",
-        message: "No posts found",
-        count: 0,
-        data: []
-      });
+    const needsAnalysis = sourcePosts.filter((p) => !preAnalyzedMap.has(p.id));
+
+    logger.info(
+      `[Search] AI optimization: ${preAnalyzed.length} pre-analyzed, ${needsAnalysis.length} need AI`
+    );
+
+    // ── Step 4: Analyze only un-analyzed posts ──────────────────────────
+    let freshlyAnalyzed = [];
+    if (needsAnalysis.length > 0) {
+      freshlyAnalyzed = await analyzePosts(needsAnalysis);
+
+      // Persist AI results back to DB so next search skips them
+      await savePosts(freshlyAnalyzed, query, userId);
     }
 
-    // Save to cache
-    await savePosts(posts, query);
+    // ── Step 5: Merge all posts (pre-analyzed + freshly analyzed) ────────
+    const mergedPosts = sourcePosts.map((p) => {
+      // Prefer freshly analyzed (has finalScore + opportunity from ranking)
+      const fresh = freshlyAnalyzed.find((f) => f.id === p.id);
+      if (fresh) return fresh;
+      // Fall back to pre-analyzed DB record
+      return preAnalyzedMap.get(p.id) || p;
+    });
 
-    // Analyze posts with AI (use in-memory posts to avoid redundant DB call)
-    const analyzedPosts = await analyzePosts(posts);
-
-    const rankedPosts = rankPosts(analyzedPosts);
+    // ── Step 6: Rank and filter ─────────────────────────────────────────
+    const rankedPosts = rankPosts(mergedPosts);
     const topPosts = filterTopPosts(rankedPosts, 5);
+
+    // ── Step 7: Save lead session asynchronously (non-blocking) ─────────
+    saveLeadSession(userId, query, topPosts, {
+      source: cacheSource,
+      category: null,
+      keywords: [],
+      painPoints: [],
+    }).catch((e) =>
+      logger.error(`[Search] Non-blocking saveLeadSession failed: ${e.message}`)
+    );
 
     return res.status(200).json({
       success: true,
-      source: "api",
+      source: cacheSource,
       count: topPosts.length,
-      data: topPosts
+      data: topPosts,
     });
-
   } catch (err) {
     logger.error(`[Routes] Search error: ${err.message}`);
     next(err);
   }
 });
 
-
-router.post("/leads/discover", protect, discoverLimiter, async (req, res, next) => {
-  try {
-    let urls;
-    
-    // 1. Validate input
+/**
+ * Discover leads from URLs (queues a background BullMQ job)
+ */
+router.post(
+  "/leads/discover",
+  protect,
+  discoverLimiter,
+  async (req, res, next) => {
     try {
-      urls = validateUrlsArray(req.body.urls);
-    } catch (err) {
-      return res.status(400).json({
-        success: false,
-        message: err.message
+      let urls;
+      try {
+        urls = validateUrlsArray(req.body.urls);
+      } catch (err) {
+        return res.status(400).json({ success: false, message: err.message });
+      }
+
+      const jobId = await addDiscoverJob(urls, req.user?.id);
+
+      return res.status(202).json({
+        success: true,
+        message: "Lead discovery job started",
+        jobId,
       });
+    } catch (err) {
+      logger.error(`[Discover Route] Error: ${err.message}`);
+      next(err);
     }
-
-    // 2. Add to background queue
-    const jobId = await addDiscoverJob(urls);
-    
-    return res.status(202).json({
-      success: true,
-      message: "Lead discovery job started",
-      jobId
-    });
-
-  } catch (err) {
-    logger.error(`[Discover Route] Error: ${err.message}`);
-    next(err);
   }
-});
+);
 
 /**
  * Polling Route for Background Job Status
  */
-router.get("/leads/discover/:jobId/status", protect, async (req, res, next) => {
-  try {
-    const { jobId } = req.params;
-    const job = await discoverQueue.getJob(jobId);
+router.get(
+  "/leads/discover/:jobId/status",
+  protect,
+  async (req, res, next) => {
+    try {
+      const { jobId } = req.params;
+      const job = await discoverQueue.getJob(jobId);
 
-    if (!job) {
-      return res.status(404).json({ success: false, message: "Job not found" });
-    }
+      if (!job) {
+        return res.status(404).json({ success: false, message: "Job not found" });
+      }
 
-    const state = await job.getState();
-    const progress = job.progress;
-    
-    if (state === 'completed') {
+      const state = await job.getState();
+      const progress = job.progress;
+
+      if (state === "completed") {
+        return res.status(200).json({
+          success: true,
+          status: "completed",
+          progress: 100,
+          result: job.returnvalue,
+        });
+      }
+
+      if (state === "failed") {
+        return res.status(500).json({
+          success: false,
+          status: "failed",
+          message: job.failedReason || "Job failed during processing",
+        });
+      }
+
       return res.status(200).json({
         success: true,
-        status: 'completed',
-        progress: 100,
-        result: job.returnvalue
+        status: state,
+        progress: progress?.step || 0,
+        message: progress?.message || "Waiting in queue...",
       });
+    } catch (err) {
+      logger.error(`[Job Status Route] Error: ${err.message}`);
+      next(err);
     }
-
-    if (state === 'failed') {
-      return res.status(500).json({
-        success: false,
-        status: 'failed',
-        message: job.failedReason || "Job failed during processing"
-      });
-    }
-
-    // Active, waiting, or delayed
-    return res.status(200).json({
-      success: true,
-      status: state,
-      progress: progress?.step || 0,
-      message: progress?.message || "Waiting in queue..."
-    });
-
-  } catch (err) {
-    logger.error(`[Job Status Route] Error: ${err.message}`);
-    next(err);
   }
-});
+);
 
 export default router;
-

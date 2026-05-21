@@ -1,23 +1,61 @@
-﻿import LeadCard from "./LeadCard";
+import LeadCard from "./LeadCard";
 
-export default function Results({ posts, info }) {
-  if (!posts.length) return <p>No results yet</p>;
+const formatDate = (iso) =>
+  iso
+    ? new Date(iso).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
+
+export default function Results({ posts, info, sessionMeta = null }) {
+  if (!posts || posts.length === 0) {
+    return (
+      <div className="empty-state">
+        <div className="empty-icon">📭</div>
+        <h3>No leads found</h3>
+        <p>Try a different keyword or URL to discover opportunities.</p>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ marginTop: "20px" }}>
-      {info && (
-        <div style={{ marginBottom: "16px", padding: "12px", background: "#f9f9ff", borderRadius: "10px" }}>
-          {info.category && <p><strong>Category:</strong> {info.category}</p>}
-          {info.count != null && <p><strong>Results:</strong> {info.count}</p>}
-          {info.source && <p><strong>Source:</strong> {info.source}</p>}
-          {info.keywords?.length > 0 && (
-            <p><strong>Keywords:</strong> {info.keywords.join(", ")}</p>
+    <div className="results-wrap">
+      {/* Info / session metadata bar */}
+      {(info || sessionMeta) && (
+        <div className="info-bar">
+          {sessionMeta && (
+            <span className="info-chip">
+              📅 <strong>{formatDate(sessionMeta.created_at)}</strong>
+            </span>
           )}
-          {info.painPoints?.length > 0 && (
-            <p><strong>Pain points:</strong> {info.painPoints.join(", ")}</p>
+          {(info?.source || sessionMeta?.source) && (
+            <span className="info-chip">
+              🗂 Source: <strong>{info?.source || sessionMeta?.source}</strong>
+            </span>
+          )}
+          {(info?.count ?? posts.length) > 0 && (
+            <span className="info-chip">
+              📊 <strong>{info?.count ?? posts.length}</strong> leads
+            </span>
+          )}
+          {info?.category && (
+            <span className="info-chip">
+              🏷 <strong>{info.category}</strong>
+            </span>
+          )}
+          {info?.keywords?.length > 0 && (
+            <span className="info-chip">
+              🔑 {info.keywords.slice(0, 3).join(", ")}
+            </span>
           )}
         </div>
       )}
+
+      <p className="results-heading">
+        {posts.length} lead{posts.length !== 1 ? "s" : ""} found
+      </p>
 
       {posts.map((post) => (
         <LeadCard key={post.id} post={post} />

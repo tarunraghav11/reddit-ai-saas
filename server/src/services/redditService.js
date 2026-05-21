@@ -3,7 +3,7 @@ import { logger } from "../utils/logger.js";
 const CONFIG = {
   BASE_URL: "https://www.reddit.com/search.json",
   TIMEOUT_MS: parseInt(process.env.REDDIT_TIMEOUT_MS || "10000", 10),
-  LIMIT: parseInt(process.env.REDDIT_LIMIT || "10", 10)
+  LIMIT: parseInt(process.env.REDDIT_LIMIT || "25", 10)
 };
 
 const fetchWithRetry = async (url, options, retries = 3, delayMs = 1000) => {
