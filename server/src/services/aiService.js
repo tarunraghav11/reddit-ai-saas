@@ -61,10 +61,10 @@ const HEAVY_MODEL = "llama-3.3-70b-versatile"; // Reserved for keyword extractio
 // ─────────────────────────────────────────────
 
 const callWithModelFallback = async (messages, maxTokens = 2000, timeoutMs = 25000) => {
-  const client = getNextClient();
-
   for (let i = 0; i < CLASSIFICATION_MODELS.length; i++) {
     const model = CLASSIFICATION_MODELS[i];
+    const client = getNextClient(); // Rotate client (API key) on every attempt to bypass key rate-limits
+
     try {
       const response = await Promise.race([
         client.chat.completions.create({
@@ -85,8 +85,8 @@ const callWithModelFallback = async (messages, maxTokens = 2000, timeoutMs = 250
       const is429 = err.message?.includes("429") || err.status === 429;
 
       if (is429 && i < CLASSIFICATION_MODELS.length - 1) {
-        logger.warn(`[AI Service] Model ${model} rate limited (429). Rotating to next model...`);
-        continue; // Try next model
+        logger.warn(`[AI Service] Model ${model} rate limited (429). Rotating to next model and API key...`);
+        continue; // Try next model with the next key
       }
 
       // Not a 429, or we've exhausted all models
@@ -317,11 +317,11 @@ ${content.slice(0, 8000)}
 
     // Try the full model pool — heavy model first, then lighter fallbacks on 429
     const ALL_MODELS = [HEAVY_MODEL, ...CLASSIFICATION_MODELS];
-    const client = getNextClient();
     let response = null;
 
     for (let i = 0; i < ALL_MODELS.length; i++) {
       const model = ALL_MODELS[i];
+      const client = getNextClient(); // Rotate client (API key) on every attempt to bypass key rate-limits
       try {
         response = await Promise.race([
           client.chat.completions.create({
@@ -339,7 +339,7 @@ ${content.slice(0, 8000)}
       } catch (err) {
         const is429 = err.message?.includes("429") || err.status === 429;
         if (is429 && i < ALL_MODELS.length - 1) {
-          logger.warn(`[AI Keyword Extraction] Model ${model} rate limited. Rotating to next...`);
+          logger.warn(`[AI Keyword Extraction] Model ${model} rate limited. Rotating to next model and API key...`);
           continue;
         }
         throw err; // non-429 error or all models exhausted

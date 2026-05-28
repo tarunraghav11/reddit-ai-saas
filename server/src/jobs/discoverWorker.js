@@ -50,15 +50,25 @@ const processDiscoverJob = async (job) => {
         warning: "AI models are currently rate-limited. Please try again in a few minutes."
       };
     }
-
-    // Stage 4: Fetch Reddit Posts
+    // Stage 4: Fetch Reddit Posts concurrently
     await job.updateProgress({ step: 70, message: "Fetching relevant Reddit posts..." });
-    const allPosts = [];
-    for (const kw of keywords.slice(0, 3)) { // Limit to top 3 keywords to avoid hitting rate limits too hard
-      const posts = await fetchRedditPosts(kw);
-      allPosts.push(...posts);
-      await savePosts(posts, kw, userId); // Cache in background with userId
-    }
+    
+    const kwSlice = keywords.slice(0, 3);
+    const fetchPromises = kwSlice.map(async (kw) => {
+      try {
+        const posts = await fetchRedditPosts(kw);
+        await savePosts(posts, kw, userId); // Cache in background with userId
+        return posts;
+      } catch (err) {
+        logger.error(`[DiscoverWorker] Failed to fetch Reddit posts for keyword "${kw}": ${err.message}`);
+        return [];
+      }
+    });
+
+    const results = await Promise.allSettled(fetchPromises);
+    const allPosts = results
+      .filter(r => r.status === "fulfilled")
+      .flatMap(r => r.value);
 
     // Deduplicate posts
     const uniquePosts = Array.from(new Map(allPosts.map((p) => [p.id, p])).values());
