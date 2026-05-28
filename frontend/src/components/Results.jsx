@@ -30,11 +30,7 @@ export default function Results({ posts, info, sessionMeta = null }) {
               📅 <strong>{formatDate(sessionMeta.created_at)}</strong>
             </span>
           )}
-          {(info?.source || sessionMeta?.source) && (
-            <span className="info-chip">
-              🗂 Source: <strong>{info?.source || sessionMeta?.source}</strong>
-            </span>
-          )}
+
           {(info?.count ?? posts.length) > 0 && (
             <span className="info-chip">
               📊 <strong>{info?.count ?? posts.length}</strong> leads

@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import "./index.css";
 import LandingPage from "./pages/LandingPage";
 import MainApp from "./pages/MainApp";
+import AuthPage from "./pages/AuthPage";
 import { supabase } from "./auth/supabaseClient";
 
 function App() {
@@ -47,8 +48,12 @@ function App() {
     <Routes>
       <Route path="/" element={<LandingPage user={user} />} />
       <Route
+        path="/auth"
+        element={!user ? <AuthPage /> : <Navigate to="/app" replace />}
+      />
+      <Route
         path="/app"
-        element={user ? <MainApp user={user} /> : <Navigate to="/" replace />}
+        element={user ? <MainApp user={user} /> : <Navigate to="/auth" replace />}
       />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

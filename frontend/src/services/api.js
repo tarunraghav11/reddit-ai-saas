@@ -98,3 +98,49 @@ export const deleteSession = async (sessionId) => {
     return { success: false };
   }
 };
+
+export const generateReply = async ({ title, pain, subreddit, reason }) => {
+  try {
+    const res = await fetch(`${API_URL}/leads/outreach`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ title, pain, subreddit, reason }),
+    });
+    const json = await safeJson(res);
+    return { success: res.ok && json.success, ...json };
+  } catch (err) {
+    console.error("[API] generateReply:", err.message);
+    return { success: false, message: err.message || "Failed to generate replies" };
+  }
+};
+
+// ── Stripe Billing ──────────────────────────────────────────
+export const createCheckoutSession = async (planName) => {
+  try {
+    const res = await fetch(`${API_URL}/payments/create-checkout-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ planName }),
+    });
+    const json = await safeJson(res);
+    return { success: res.ok && json.success, ...json };
+  } catch (err) {
+    console.error("[API] createCheckoutSession:", err.message);
+    return { success: false, message: err.message || "Failed to create checkout session" };
+  }
+};
+
+export const verifyCheckoutSession = async (sessionId) => {
+  try {
+    const res = await fetch(`${API_URL}/payments/verify-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ sessionId }),
+    });
+    const json = await safeJson(res);
+    return { success: res.ok && json.success, ...json };
+  } catch (err) {
+    console.error("[API] verifyCheckoutSession:", err.message);
+    return { success: false, message: err.message || "Failed to verify payment session" };
+  }
+};

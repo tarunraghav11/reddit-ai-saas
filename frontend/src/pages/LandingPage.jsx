@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { loginWithGoogle } from "../auth/authService";
 
 export default function LandingPage({ user }) {
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openFaq, setOpenFaq] = useState(null);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 30);
@@ -13,8 +13,12 @@ export default function LandingPage({ user }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const handleCTA = async () => {
-    if (user) { navigate("/app"); } else { await loginWithGoogle(); }
+  const handleCTA = () => {
+    if (user) {
+      navigate("/app");
+    } else {
+      navigate("/auth");
+    }
   };
 
   const scrollTo = (id) => {
@@ -23,58 +27,181 @@ export default function LandingPage({ user }) {
   };
 
   const features = [
-    { icon: "⚡", title: "Real-time Results", desc: "Fresh Reddit data on every search — always the hottest conversations happening right now." },
-    { icon: "🧠", title: "AI Intent Scoring", desc: "Scores buyer intent 0–100 using Groq AI so you focus on the highest-value leads first." },
-    { icon: "🗂️", title: "Persistent History", desc: "Every search is saved automatically. Come back anytime to revisit leads from past sessions." },
-    { icon: "🌐", title: "Competitor Discovery", desc: "Paste a competitor URL and uncover audiences actively searching for alternatives." },
-    { icon: "💰", title: "Pain Point Extraction", desc: "AI pulls exact pain points from each post — perfect for hyper-personalized outreach." },
-    { icon: "🔒", title: "Secure & Private", desc: "Your searches are private to your account. Built on enterprise-grade Supabase infrastructure." },
+    {
+      icon: "⚡",
+      title: "Real-time Reddit Scanning",
+      desc: "Live, fresh Reddit data matching your exact target niche. Capture buying signals the very minute they happen.",
+    },
+    {
+      icon: "🧠",
+      title: "AI Buyer Intent Scoring",
+      desc: "Analyzes post context using Groq AI and scores buyer intent 0-100, saving you hours of manual scrolling and guesswork.",
+    },
+    {
+      icon: "✉️",
+      title: "Contextual Outreach Drafts",
+      desc: "Instantly crafts 2 hyper-personalized reply drafts tailored to the specific pain point and subreddit tone in one click.",
+    },
+    {
+      icon: "🌐",
+      title: "Competitor URL Scraper",
+      desc: "Paste any competitor homepage URL. We automatically extract their target keywords and surface their audience on Reddit.",
+    },
+    {
+      icon: "💸",
+      title: "Pain Point Extraction",
+      desc: "Automatically extracts exact product gaps, budget constraints, and feature frustrations directly from Reddit posts.",
+    },
+    {
+      icon: "🗂️",
+      title: "Persistent Search History",
+      desc: "All your search sessions, categories, and leads are saved automatically. Never lose a high-value prospect again.",
+    },
   ];
 
   const steps = [
-    { num: "01", icon: "🔍", title: "Enter Your Niche", desc: "Type your product or service keyword. LeadRadar targets the right subreddits automatically.", color: "#6c63ff" },
-    { num: "02", icon: "🤖", title: "AI Scans Reddit", desc: "Our Groq-powered AI reads thousands of posts, classifies intent, and scores buying signals in real time.", color: "#06b6d4" },
-    { num: "03", icon: "🎯", title: "Get Ranked Leads", desc: "Receive a curated list of high-intent prospects with pain points, opportunity scores, and direct links.", color: "#22c55e" },
+    {
+      num: "01",
+      icon: "🔍",
+      title: "Define Niche Keywords",
+      desc: "Type your product domain or target keywords. LeadRadar targets highly relevant niche subreddits automatically.",
+      color: "#6c63ff",
+    },
+    {
+      num: "02",
+      icon: "🤖",
+      title: "AI Audits Post Intent",
+      desc: "Our Groq-powered AI reads the text, classifies buyer intent, and extracts exact user frustrations in seconds.",
+      color: "#06b6d4",
+    },
+    {
+      num: "03",
+      icon: "🎯",
+      title: "Deploy outreach drafts",
+      desc: "Copy context-aware outreach replies and direct-link to the Reddit post to close high-intent sales pipelines immediately.",
+      color: "#22c55e",
+    },
   ];
 
-  const compareRows = [
-    ["Time to find 5 leads", "~3 minutes", "2–3 hours"],
-    ["Intent scoring", "✅ AI-powered", "❌ Guesswork"],
-    ["Pain point extraction", "✅ Automatic", "❌ Manual notes"],
-    ["Search history", "✅ Always saved", "❌ Gone after tab close"],
-    ["Competitor discovery", "✅ Built-in", "❌ Not possible"],
-    ["Scale", "✅ 1000s of posts", "❌ Limited by time"],
+  const testimonials = [
+    {
+      name: "Siddharth Mehta",
+      role: "Founder, MailPush SaaS",
+      avatar: "S",
+      quote: "LeadRadar completely replaced my cold emailing workflow. I found 12 high-paying SaaS customers in my first week just by replying to hot threads on r/startup. The AI intent scoring is scarily accurate!",
+      stars: "★★★★★",
+    },
+    {
+      name: "Sarah Jenkins",
+      role: "Growth Marketer, FlowDoc",
+      avatar: "J",
+      quote: "Scraping competitor URLs to find Reddit keywords is a cheat code. I dropped our competitor's landing page, found 5 niche keywords, and got 40 high-quality leads in under 10 minutes. Incredible utility!",
+      stars: "★★★★★",
+    },
+  ];
+
+  const faqs = [
+    {
+      q: "How does the AI intent scoring work?",
+      a: "Our system pulls live Reddit posts based on your keywords and passes them to our Groq-powered AI engine. The model analyzes the user's title, body, and subreddit parameters to detect purchase urgency, frustration with competitors, or direct requests for recommendations, scoring them from 0 (low signal) to 100 (ready to buy).",
+    },
+    {
+      q: "Can I use LeadRadar completely for free?",
+      a: "Yes! Our Free plan is free forever and includes 3 daily searches and 1 URL competitor discover scan. No credit card is required to sign up or test your limits.",
+    },
+    {
+      q: "What is the Outreach Reply Drafts Generator?",
+      a: "Available on our Starter and Pro tiers, this feature uses context-aware LLMs to analyze the exact pain points extracted from a Reddit post. It then crafts 2 highly personalized, non-spammy response drafts designed to help and subtly pitch your product according to the subreddit rules.",
+    },
+    {
+      q: "How do I connect my Stripe subscription?",
+      a: "Stripe handles all of our billing. You can subscribe securely inside the Billing & Quotas tab of your dashboard. Stripe Test Mode is currently enabled, allowing you to fully test upgrades using mock test card details completely for free.",
+    },
+  ];
+
+  const pricingPlans = [
+    {
+      name: "Free",
+      price: "$0",
+      desc: "Perfect for exploring niche keywords and validating ideas.",
+      searches: "3 searches/day",
+      discovers: "1 discover/day",
+      outreach: "2 outreach drafts/day",
+      cta: "Start Free",
+      highlight: false,
+    },
+    {
+      name: "Starter",
+      price: "$9.99",
+      desc: "For freelancers and founders building consistent pipelines.",
+      searches: "20 searches/day",
+      discovers: "10 discovers/day",
+      outreach: "15 outreach drafts/day",
+      cta: "Upgrade to Starter",
+      highlight: true,
+    },
+    {
+      name: "Pro",
+      price: "$39.99",
+      desc: "For growth agencies, startups, and outbound sales teams.",
+      searches: "100 searches/day",
+      discovers: "50 discovers/day",
+      outreach: "100 outreach drafts/day",
+      cta: "Upgrade to Pro",
+      highlight: false,
+    },
   ];
 
   return (
     <div className="landing-root">
-
       {/* ── NAVBAR ─────────────────────────────────── */}
       <header className={`landing-nav${scrolled ? " nav-scrolled" : ""}`}>
         <div className="nav-inner">
-          <div className="nav-logo" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}>
-            <span className="nav-logo-icon">🎯</span>
+          <div
+            className="nav-logo"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          >
+            <span className="nav-logo-icon" style={{ display: "inline-flex", alignItems: "center" }}>
+              <svg viewBox="0 0 24 24" width="24" height="24" style={{ fill: "#a855f7" }}>
+                <path d="M24 11.5c0-1.65-1.35-3-3-3-.96 0-1.86.48-2.42 1.24-1.64-1-3.85-1.64-6.29-1.72l1.3-4.14 4.26 1c.02.99.83 1.77 1.83 1.77 1.02 0 1.85-.83 1.85-1.85 0-1.02-.83-1.85-1.85-1.85-.84 0-1.55.57-1.77 1.34L13.12 1.82C12.96 1.76 12.79 1.85 12.73 2l-1.5 4.76C8.78 6.85 6.54 7.5 4.9 8.5 4.33 7.74 3.43 7.26 2.47 7.26c-1.65 0-3 1.35-3 3 0 1.2.71 2.24 1.74 2.72-.08.38-.11.77-.11 1.16 0 3.86 4.43 7 9.9 7s9.9-3.14 9.9-7c0-.39-.03-.78-.11-1.16 1.03-.48 1.74-1.52 1.74-2.72zm-16.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm9 3c-1.8 1.8-5.2 1.8-7 0-.2-.2-.2-.5 0-.7.2-.2.5-.2.7 0 1.4 1.4 4.2 1.4 5.6 0 .2-.2.5-.2.7 0 .2.2.2.5 0 .7zm.5-4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+              </svg>
+            </span>
             <span className="nav-logo-text">LeadRadar</span>
           </div>
 
           <nav className="nav-links" aria-label="Main navigation">
-            <button id="nav-how" onClick={() => scrollTo("how-it-works")}>How it Works</button>
-            <button id="nav-why" onClick={() => scrollTo("why-us")}>Why LeadRadar</button>
-            <button id="nav-pricing" onClick={() => scrollTo("pricing-teaser")}>Pricing</button>
+            <button onClick={() => scrollTo("how-it-works")}>How it Works</button>
+            <button onClick={() => scrollTo("why-us")}>Why LeadRadar</button>
+            <button onClick={() => scrollTo("testimonials")}>Testimonials</button>
+            <button onClick={() => scrollTo("pricing-teaser")}>Pricing</button>
+            <button onClick={() => scrollTo("faqs")}>FAQs</button>
           </nav>
 
           <div className="nav-actions">
             {user ? (
-              <button id="nav-open-app" className="nav-btn-primary" onClick={() => navigate("/app")}>Open App →</button>
+              <button
+                className="nav-btn-primary"
+                onClick={() => navigate("/app")}
+              >
+                Dashboard →
+              </button>
             ) : (
               <>
-                <button id="nav-signin" className="nav-btn-ghost" onClick={handleCTA}>Sign In</button>
-                <button id="nav-get-started" className="nav-btn-primary" onClick={handleCTA}>Get Started Free</button>
+                <button className="nav-btn-ghost" onClick={handleCTA}>
+                  Sign In
+                </button>
+                <button className="nav-btn-primary" onClick={handleCTA}>
+                  Get Started Free
+                </button>
               </>
             )}
           </div>
 
-          <button className="nav-hamburger" id="nav-hamburger" aria-label="Toggle menu" onClick={() => setMenuOpen((o) => !o)}>
+          <button
+            className="nav-hamburger"
+            aria-label="Toggle menu"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
             <span className={`hamburger-line ${menuOpen ? "open" : ""}`} />
             <span className={`hamburger-line ${menuOpen ? "open" : ""}`} />
             <span className={`hamburger-line ${menuOpen ? "open" : ""}`} />
@@ -85,9 +212,11 @@ export default function LandingPage({ user }) {
           <div className="nav-mobile-menu">
             <button onClick={() => scrollTo("how-it-works")}>How it Works</button>
             <button onClick={() => scrollTo("why-us")}>Why LeadRadar</button>
+            <button onClick={() => scrollTo("testimonials")}>Testimonials</button>
             <button onClick={() => scrollTo("pricing-teaser")}>Pricing</button>
-            <button className="nav-btn-primary full-w" id="mobile-cta" onClick={handleCTA}>
-              {user ? "Open App →" : "Get Started Free"}
+            <button onClick={() => scrollTo("faqs")}>FAQs</button>
+            <button className="nav-btn-primary full-w" onClick={handleCTA}>
+              {user ? "Dashboard →" : "Get Started Free"}
             </button>
           </div>
         )}
@@ -105,38 +234,50 @@ export default function LandingPage({ user }) {
         <div className="hero-content">
           <div className="hero-badge">
             <span className="hero-badge-dot" />
-            AI-Powered Reddit Lead Generation
+            AI-Powered Reddit Lead Acquisition
           </div>
 
           <h1 className="hero-title">
-            Find High-Intent<br />
+            Acquire High-Intent<br />
             <span className="gradient-text">Reddit Leads</span><br />
-            Before Your Competitors Do
+            In Real Time
           </h1>
 
           <p className="hero-sub">
-            Stop scrolling Reddit for hours. Our AI scans thousands of posts, scores buying intent, and surfaces people who <em>need</em> what you sell — right now.
+            Stop digging through Reddit manually. Our Groq-powered AI monitors thousands of posts daily, extracts specific pain points, and filters the top 1% highest-intent buyers for your business.
           </p>
 
           <div className="hero-actions">
-            <button id="hero-cta-primary" className="hero-btn-primary" onClick={handleCTA}>
+            <button className="hero-btn-primary" onClick={handleCTA}>
               {user ? "Open Dashboard →" : "Start Finding Leads Free"}
             </button>
-            <button id="hero-cta-secondary" className="hero-btn-ghost" onClick={() => scrollTo("how-it-works")}>
-              See How it Works ↓
+            <button
+              className="hero-btn-ghost"
+              onClick={() => scrollTo("how-it-works")}
+            >
+              Learn More ↓
             </button>
           </div>
 
           <div className="hero-stats">
-            <div className="hero-stat"><span className="stat-num">10k+</span><span className="stat-label">Posts analyzed daily</span></div>
+            <div className="hero-stat">
+              <span className="stat-num">10k+</span>
+              <span className="stat-label">Posts analyzed daily</span>
+            </div>
             <div className="hero-stat-sep" />
-            <div className="hero-stat"><span className="stat-num">94%</span><span className="stat-label">AI accuracy score</span></div>
+            <div className="hero-stat">
+              <span className="stat-num">94%</span>
+              <span className="stat-label">AI intent accuracy</span>
+            </div>
             <div className="hero-stat-sep" />
-            <div className="hero-stat"><span className="stat-num">3 min</span><span className="stat-label">Time to first lead</span></div>
+            <div className="hero-stat">
+              <span className="stat-num">3 min</span>
+              <span className="stat-label">Time to first sales lead</span>
+            </div>
           </div>
         </div>
 
-        {/* Browser mockup */}
+        {/* Mock Browser Graphics */}
         <div className="hero-mockup" aria-hidden="true">
           <div className="mock-browser">
             <div className="mock-titlebar">
@@ -150,22 +291,49 @@ export default function LandingPage({ user }) {
             <div className="mock-content">
               <div className="mock-search-bar">
                 <span className="mock-search-icon">🔍</span>
-                <span className="mock-search-text">SaaS email marketing tool</span>
+                <span className="mock-search-text">SaaS email marketing tool alternative</span>
                 <span className="mock-search-btn">Search</span>
               </div>
               <div className="mock-leads-list">
                 {[
-                  { intent: "HIGH", title: "Looking for email tool that actually delivers...", sub: "r/entrepreneur · 234 ↑", score: 95, delay: "0s" },
-                  { intent: "HIGH", title: "Mailchimp destroying my open rates, need alternative", sub: "r/smallbusiness · 89 ↑", score: 88, delay: "0.15s" },
-                  { intent: "MEDIUM", title: "Best email automation for SaaS founders 2025?", sub: "r/SaaS · 156 ↑", score: 74, delay: "0.3s" },
+                  {
+                    intent: "HIGH",
+                    title: "Looking for email marketing tool that actually delivers...",
+                    sub: "r/entrepreneur · 94% Intent Score",
+                    score: 94,
+                    delay: "0s",
+                  },
+                  {
+                    intent: "HIGH",
+                    title: "Mailchimp pricing is killing us, any self-hosted alternatives?",
+                    sub: "r/smallbusiness · 88% Intent Score",
+                    score: 88,
+                    delay: "0.15s",
+                  },
+                  {
+                    intent: "MEDIUM",
+                    title: "Best email automation suite for bootstrap SaaS founders?",
+                    sub: "r/SaaS · 72% Intent Score",
+                    score: 72,
+                    delay: "0.3s",
+                  },
                 ].map((lead, i) => (
-                  <div key={i} className="mock-lead" style={{ animationDelay: lead.delay }}>
-                    <span className={`mock-intent-badge ${lead.intent}`}>{lead.intent}</span>
+                  <div
+                    key={i}
+                    className="mock-lead"
+                    style={{ animationDelay: lead.delay }}
+                  >
+                    <span className={`mock-intent-badge ${lead.intent}`}>
+                      {lead.intent}
+                    </span>
                     <div className="mock-lead-body">
                       <div className="mock-lead-title">{lead.title}</div>
                       <div className="mock-lead-sub">{lead.sub}</div>
                     </div>
-                    <div className="mock-score-ring" style={{ "--score-pct": `${lead.score}%` }}>
+                    <div
+                      className="mock-score-ring"
+                      style={{ "--score-pct": `${lead.score}%` }}
+                    >
                       <span>{lead.score}%</span>
                     </div>
                   </div>
@@ -179,18 +347,28 @@ export default function LandingPage({ user }) {
       {/* ── HOW IT WORKS ───────────────────────────── */}
       <section id="how-it-works" className="section-how">
         <div className="section-container">
-          <div className="section-eyebrow">Simple Process</div>
-          <h2 className="section-heading">From keyword to lead in minutes</h2>
-          <p className="section-desc">Three steps. No setup. No credit card required to get started.</p>
+          <div className="section-eyebrow">Smart Pipeline</div>
+          <h2 className="section-heading">Identify, qualify, and draft outreach in seconds</h2>
+          <p className="section-desc">
+            LeadRadar operates in three lightning-fast steps, taking you from raw Reddit text to a highly custom pitch draft.
+          </p>
 
           <div className="steps-grid">
             {steps.map((step, i) => (
-              <div key={i} className="step-card" style={{ "--step-clr": step.color }}>
+              <div
+                key={i}
+                className="step-card"
+                style={{ "--step-clr": step.color }}
+              >
                 <div className="step-number">{step.num}</div>
                 <div className="step-icon">{step.icon}</div>
                 <h3 className="step-title">{step.title}</h3>
                 <p className="step-desc">{step.desc}</p>
-                {i < steps.length - 1 && <div className="step-arrow" aria-hidden="true">→</div>}
+                {i < steps.length - 1 && (
+                  <div className="step-arrow" aria-hidden="true">
+                    →
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -200,9 +378,11 @@ export default function LandingPage({ user }) {
       {/* ── WHY LEADRADAR ──────────────────────────── */}
       <section id="why-us" className="section-why">
         <div className="section-container">
-          <div className="section-eyebrow">Why LeadRadar</div>
-          <h2 className="section-heading">Stop wasting time on manual prospecting</h2>
-          <p className="section-desc">LeadRadar gives you an unfair advantage over competitors still browsing Reddit manually.</p>
+          <div className="section-eyebrow">Core Features</div>
+          <h2 className="section-heading">A complete toolset built for sales acquisition</h2>
+          <p className="section-desc">
+            We built LeadRadar to solve manual prospecting pain. Here is how we give you the growth edge:
+          </p>
 
           <div className="features-grid">
             {features.map((f, i) => (
@@ -213,24 +393,32 @@ export default function LandingPage({ user }) {
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          {/* Comparison table */}
-          <div className="compare-wrap">
-            <h3 className="compare-heading">LeadRadar vs Manual Reddit Search</h3>
-            <div className="compare-table" role="table" aria-label="Comparison table">
-              <div className="compare-header" role="row">
-                <div role="columnheader">Feature</div>
-                <div className="col-ours" role="columnheader">🎯 LeadRadar</div>
-                <div className="col-manual" role="columnheader">Manual Search</div>
-              </div>
-              {compareRows.map(([feat, ours, manual], i) => (
-                <div key={i} className="compare-row" role="row">
-                  <div role="cell">{feat}</div>
-                  <div className="col-ours" role="cell">{ours}</div>
-                  <div className="col-manual" role="cell">{manual}</div>
+      {/* ── TESTIMONIALS ───────────────────────────── */}
+      <section id="testimonials" className="section-testimonials">
+        <div className="section-container">
+          <div className="section-eyebrow">Social Proof</div>
+          <h2 className="section-heading">Loved by founders and outbound teams</h2>
+          <p className="section-desc">
+            See how developers and builders are utilizing LeadRadar to close high-ticket pipelines.
+          </p>
+
+          <div className="testimonials-grid">
+            {testimonials.map((t, i) => (
+              <div key={i} className="testimonial-card">
+                <div className="test-stars">{t.stars}</div>
+                <p className="test-quote">"{t.quote}"</p>
+                <div className="test-user">
+                  <div className="test-avatar">{t.avatar}</div>
+                  <div className="test-info">
+                    <div className="test-name">{t.name}</div>
+                    <div className="test-role">{t.role}</div>
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -238,36 +426,83 @@ export default function LandingPage({ user }) {
       {/* ── PRICING TEASER ─────────────────────────── */}
       <section id="pricing-teaser" className="section-pricing-teaser">
         <div className="section-container">
-          <div className="section-eyebrow">Pricing</div>
-          <h2 className="section-heading">Start free. Upgrade when you're ready.</h2>
-          <p className="section-desc">No contracts. No hidden fees. Cancel anytime.</p>
+          <div className="section-eyebrow">Pricing Plans</div>
+          <h2 className="section-heading">Transparent pricing for every stage</h2>
+          <p className="section-desc">
+            Start completely for free. Simple monthly plans tailored to your pipeline growth.
+          </p>
 
           <div className="pricing-cards">
-            {[
-              { name: "Free", price: "$0", searches: "3 searches/day", discovers: "1 discover/day", cta: "Get Started Free", highlight: false },
-              { name: "Starter", price: "$19/mo", searches: "20 searches/day", discovers: "10 discovers/day", cta: "Upgrade to Starter", highlight: true },
-              { name: "Pro", price: "$49/mo", searches: "100 searches/day", discovers: "50 discovers/day", cta: "Upgrade to Pro", highlight: false },
-            ].map((plan, i) => (
-              <div key={i} className={`pricing-card${plan.highlight ? " pricing-card-highlight" : ""}`}>
-                {plan.highlight && <div className="pricing-popular-badge">Most Popular</div>}
-                <div className="pricing-plan-name">{plan.name}</div>
-                <div className="pricing-price">{plan.price}</div>
-                <ul className="pricing-features">
-                  <li>✓ {plan.searches}</li>
-                  <li>✓ {plan.discovers}</li>
-                  <li>✓ AI intent scoring</li>
-                  <li>✓ Search history</li>
-                  {i > 0 && <li>✓ Priority support</li>}
-                </ul>
-                <button
-                  id={`pricing-cta-${plan.name.toLowerCase()}`}
-                  className={`pricing-cta-btn${plan.highlight ? " primary" : ""}`}
-                  onClick={handleCTA}
+            {pricingPlans.map((plan, i) => {
+              return (
+                <div
+                  key={i}
+                  className={`pricing-card${plan.highlight ? " pricing-card-highlight" : ""}`}
                 >
-                  {plan.cta}
-                </button>
-              </div>
-            ))}
+                  {plan.highlight && (
+                    <div className="pricing-popular-badge">Most Popular</div>
+                  )}
+                  <div className="pricing-plan-name">{plan.name}</div>
+                  <div className="pricing-price">
+                    {plan.price}
+                    <span className="price-period">/mo</span>
+                  </div>
+                  <p className="pricing-card-desc">{plan.desc}</p>
+                  
+                  <ul className="pricing-features">
+                    <li>✓ {plan.searches}</li>
+                    <li>✓ {plan.discovers}</li>
+                    <li>✓ {plan.outreach}</li>
+                    <li>✓ Live Groq AI intent scoring</li>
+                    <li>✓ Interactive search histories</li>
+                  </ul>
+                  
+                  <button
+                    className={`pricing-cta-btn${plan.highlight ? " primary" : ""}`}
+                    onClick={handleCTA}
+                  >
+                    {plan.cta}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQS SECTION ───────────────────────────── */}
+      <section id="faqs" className="section-faqs">
+        <div className="section-container">
+          <div className="section-eyebrow">Answering Questions</div>
+          <h2 className="section-heading">Frequently Asked Questions</h2>
+          <p className="section-desc">
+            Got questions about integrations, daily quotas, or Stripe payments? We have answers.
+          </p>
+
+          <div className="faqs-list">
+            {faqs.map((faq, i) => {
+              const isOpen = openFaq === i;
+              return (
+                <div
+                  key={i}
+                  className={`faq-item ${isOpen ? "open" : ""}`}
+                  onClick={() => setOpenFaq(isOpen ? null : i)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === "Enter" && setOpenFaq(isOpen ? null : i)}
+                >
+                  <div className="faq-question">
+                    <h4>{faq.q}</h4>
+                    <span className="faq-toggle">{isOpen ? "−" : "+"}</span>
+                  </div>
+                  {isOpen && (
+                    <div className="faq-answer">
+                      <p>{faq.a}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -276,12 +511,16 @@ export default function LandingPage({ user }) {
       <section className="section-cta">
         <div className="cta-orb" aria-hidden="true" />
         <div className="section-container cta-inner">
-          <h2 className="cta-title">Ready to find your next customer?</h2>
-          <p className="cta-sub">Join founders and marketers who use LeadRadar to find high-intent Reddit leads every day. Free to start — no card required.</p>
-          <button id="cta-final" className="hero-btn-primary large" onClick={handleCTA}>
-            {user ? "Go to Dashboard →" : "Start Finding Leads for Free →"}
+          <h2 className="cta-title">Start acquiring customers today</h2>
+          <p className="cta-sub">
+            Join outbound builders and SaaS teams already using LeadRadar to identify high-intent Reddit prospects. Setup takes 30 seconds.
+          </p>
+          <button className="hero-btn-primary large" onClick={handleCTA}>
+            {user ? "Go to Dashboard →" : "Start Finding Leads Free →"}
           </button>
-          <p className="cta-note">Free plan includes 3 searches/day. No credit card needed.</p>
+          <p className="cta-note">
+            Free plan includes 3 searches/day and 2 outreach reply drafts. No credit card required.
+          </p>
         </div>
       </section>
 
@@ -289,15 +528,23 @@ export default function LandingPage({ user }) {
       <footer className="landing-footer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <span className="nav-logo-icon">🎯</span>
+            <span className="nav-logo-icon" style={{ display: "inline-flex", alignItems: "center" }}>
+              <svg viewBox="0 0 24 24" width="24" height="24" style={{ fill: "#a855f7" }}>
+                <path d="M24 11.5c0-1.65-1.35-3-3-3-.96 0-1.86.48-2.42 1.24-1.64-1-3.85-1.64-6.29-1.72l1.3-4.14 4.26 1c.02.99.83 1.77 1.83 1.77 1.02 0 1.85-.83 1.85-1.85 0-1.02-.83-1.85-1.85-1.85-.84 0-1.55.57-1.77 1.34L13.12 1.82C12.96 1.76 12.79 1.85 12.73 2l-1.5 4.76C8.78 6.85 6.54 7.5 4.9 8.5 4.33 7.74 3.43 7.26 2.47 7.26c-1.65 0-3 1.35-3 3 0 1.2.71 2.24 1.74 2.72-.08.38-.11.77-.11 1.16 0 3.86 4.43 7 9.9 7s9.9-3.14 9.9-7c0-.39-.03-.78-.11-1.16 1.03-.48 1.74-1.52 1.74-2.72zm-16.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm9 3c-1.8 1.8-5.2 1.8-7 0-.2-.2-.2-.5 0-.7.2-.2.5-.2.7 0 1.4 1.4 4.2 1.4 5.6 0 .2-.2.5-.2.7 0 .2.2.2.5 0 .7zm.5-4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+              </svg>
+            </span>
             <span className="nav-logo-text">LeadRadar</span>
           </div>
           <nav className="footer-links" aria-label="Footer navigation">
             <button onClick={() => scrollTo("how-it-works")}>How it Works</button>
             <button onClick={() => scrollTo("why-us")}>Why LeadRadar</button>
+            <button onClick={() => scrollTo("testimonials")}>Testimonials</button>
             <button onClick={() => scrollTo("pricing-teaser")}>Pricing</button>
+            <button onClick={() => scrollTo("faqs")}>FAQs</button>
           </nav>
-          <p className="footer-copy">© {new Date().getFullYear()} LeadRadar. All rights reserved.</p>
+          <p className="footer-copy">
+            © {new Date().getFullYear()} LeadRadar. All rights reserved. Built with Supabase & Stripe.
+          </p>
         </div>
       </footer>
     </div>

@@ -7,7 +7,7 @@ import {
   getAnalyzedPostsByIds,
   saveLeadSession,
 } from "../services/redditRepository.js";
-import { analyzePosts } from "../services/aiService.js";
+import { analyzePosts, generateOutreach } from "../services/aiService.js";
 import { isCacheFresh } from "../utils/cache.js";
 import { rankPosts, filterTopPosts } from "../services/rankingService.js";
 import { validateQuery, validateUrlsArray } from "../utils/validators.js";
@@ -76,7 +76,7 @@ router.get("/reddit/search", protect, searchLimiter, checkQuota("search"), async
 
     if (cacheHit) {
       sourcePosts = cachedPosts;
-      cacheSource = "cache";
+      cacheSource = "api";
       logger.info(`[Search] Cache HIT for "${query}" — ${sourcePosts.length} posts`);
     } else {
       // ── Step 2: Fetch fresh posts from Reddit ───────────────────────
@@ -232,5 +232,36 @@ router.get(
     }
   }
 );
+
+/**
+ * AI Outreach — generates 2 personalized Reddit reply drafts
+ */
+const outreachLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, message: "Too many outreach requests. Wait 15 minutes." },
+});
+
+router.post("/leads/outreach", protect, outreachLimiter, checkQuota("outreach"), async (req, res, next) => {
+  try {
+    const { title, pain, subreddit, reason } = req.body;
+    if (!title?.trim()) return res.status(400).json({ success: false, message: "Post title is required" });
+
+    const replies = await generateOutreach({
+      title: title.trim(),
+      pain: pain?.trim() || null,
+      subreddit: subreddit?.trim() || null,
+      reason: reason?.trim() || null,
+    });
+
+    return res.status(200).json({ success: true, replies });
+  } catch (err) {
+    if (err.message?.includes("429") || err.message?.includes("rate")) {
+      return res.status(429).json({ success: false, message: "AI rate-limited. Try again in a minute." });
+    }
+    logger.error(`[Outreach] Error: ${err.message}`);
+    next(err);
+  }
+});
 
 export default router;

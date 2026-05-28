@@ -365,3 +365,39 @@ ${content.slice(0, 8000)}
     return { category: "Unknown", painPoints: [], keywords: [] };
   }
 };
+
+// ─────────────────────────────────────────────
+// PUBLIC: generateOutreach
+// Generates 2 concise, personalized Reddit reply drafts.
+// Reuses callWithModelFallback for automatic 429 rotation.
+// ─────────────────────────────────────────────
+
+const OUTREACH_SYSTEM_PROMPT = `You write helpful Reddit replies for SaaS founders. Rules:
+- Sound human, empathetic, NOT salesy
+- Provide genuine value first
+- Keep each reply under 80 words
+- Never mention product names unless given
+Return JSON: { "replies": [ { "tone": "friendly|professional", "text": "..." }, { "tone": "...", "text": "..." } ] }`;
+
+export const generateOutreach = async ({ title, pain, subreddit, reason }) => {
+  const userMsg = `Post: "${title}"${subreddit ? ` in r/${subreddit}` : ""}${pain ? `\nPain: ${pain}` : ""}${reason ? `\nContext: ${reason}` : ""}\n\nWrite 2 reply drafts.`;
+
+  const messages = [
+    { role: "system", content: OUTREACH_SYSTEM_PROMPT },
+    { role: "user", content: userMsg },
+  ];
+
+  const response = await callWithModelFallback(messages, 400, 15000);
+  const text = response.choices?.[0]?.message?.content;
+  if (!text) throw new Error("Empty outreach response");
+
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("Invalid JSON from outreach");
+
+  const parsed = JSON.parse(match[0]);
+  if (!Array.isArray(parsed.replies) || parsed.replies.length === 0) {
+    throw new Error("No replies in AI response");
+  }
+
+  return parsed.replies.slice(0, 2);
+};

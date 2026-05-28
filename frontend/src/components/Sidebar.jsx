@@ -30,8 +30,12 @@ export default function Sidebar({
   onNewSearch,
   onSessionDeleted,
   onLogout,
+  onSelectBilling,
 }) {
   const [deletingId, setDeletingId] = useState(null);
+  
+  const rawPlan = user?.app_metadata?.plan || user?.user_metadata?.plan || "free";
+  const userPlan = rawPlan.charAt(0).toUpperCase() + rawPlan.slice(1) + " Plan";
 
   const handleDelete = async (e, sessionId) => {
     e.stopPropagation();
@@ -51,8 +55,19 @@ export default function Sidebar({
     <aside className={`sidebar${collapsed ? " collapsed" : ""}`}>
       {/* Brand + User */}
       <div className="sidebar-header">
-        <div className="sidebar-brand">
-          <div className="sidebar-logo">🎯</div>
+        <div
+          className="sidebar-brand"
+          onClick={onNewSearch}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => e.key === "Enter" && onNewSearch()}
+          aria-label="New Search"
+        >
+          <div className="sidebar-logo" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            <svg viewBox="0 0 24 24" width="24" height="24" style={{ fill: "#a855f7" }}>
+              <path d="M24 11.5c0-1.65-1.35-3-3-3-.96 0-1.86.48-2.42 1.24-1.64-1-3.85-1.64-6.29-1.72l1.3-4.14 4.26 1c.02.99.83 1.77 1.83 1.77 1.02 0 1.85-.83 1.85-1.85 0-1.02-.83-1.85-1.85-1.85-.84 0-1.55.57-1.77 1.34L13.12 1.82C12.96 1.76 12.79 1.85 12.73 2l-1.5 4.76C8.78 6.85 6.54 7.5 4.9 8.5 4.33 7.74 3.43 7.26 2.47 7.26c-1.65 0-3 1.35-3 3 0 1.2.71 2.24 1.74 2.72-.08.38-.11.77-.11 1.16 0 3.86 4.43 7 9.9 7s9.9-3.14 9.9-7c0-.39-.03-.78-.11-1.16 1.03-.48 1.74-1.52 1.74-2.72zm-16.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm9 3c-1.8 1.8-5.2 1.8-7 0-.2-.2-.2-.5 0-.7.2-.2.5-.2.7 0 1.4 1.4 4.2 1.4 5.6 0 .2-.2.5-.2.7 0 .2.2.2.5 0 .7zm.5-4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/>
+            </svg>
+          </div>
           <h2>LeadRadar</h2>
         </div>
 
@@ -60,7 +75,7 @@ export default function Sidebar({
           <div className="user-avatar" aria-hidden="true">{avatarChar}</div>
           <div className="user-info">
             <div className="user-name" title={displayName}>{displayName}</div>
-            <div className="user-label">Pro Account</div>
+            <div className="user-label">{userPlan}</div>
           </div>
           <button
             className="btn-logout"
@@ -74,9 +89,14 @@ export default function Sidebar({
       </div>
 
       {/* New Search CTA */}
-      <button className="new-search-btn" onClick={onNewSearch}>
-        ＋&nbsp;New Search
-      </button>
+      <div className="sidebar-ctas">
+        <button className="new-search-btn" onClick={onNewSearch}>
+          ＋&nbsp;New Search
+        </button>
+        <button className="billing-nav-btn" onClick={onSelectBilling}>
+          💳&nbsp;&nbsp;Billing & Quotas
+        </button>
+      </div>
 
       {/* Session History */}
       <nav className="session-list" aria-label="Search history">

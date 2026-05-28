@@ -5,7 +5,7 @@ import { validateUrl } from "../utils/urlValidator.js";
 import { scrapeMultipleUrls } from "../services/urlService.js";
 import { extractKeywordsFromText, analyzePosts } from "../services/aiService.js";
 import { fetchRedditPosts } from "../services/redditService.js";
-import { savePosts, getAnalyzedPostsByIds } from "../services/redditRepository.js";
+import { savePosts, getAnalyzedPostsByIds, saveLeadSession } from "../services/redditRepository.js";
 import { rankPosts, filterTopPosts } from "../services/rankingService.js";
 
 const processDiscoverJob = async (job) => {
@@ -97,6 +97,25 @@ const processDiscoverJob = async (job) => {
     const finalPosts = filterTopPosts(rankedPosts, 15);
 
     await job.updateProgress({ step: 100, message: "Done!" });
+
+    // Stage 7: Save to user lead session history (fail-safe)
+    const label = urls.map(u => {
+      try {
+        const urlObj = new URL(u);
+        return urlObj.hostname.replace("www.", "");
+      } catch {
+        return u;
+      }
+    }).slice(0, 2).join(", ") + (urls.length > 2 ? ` (+${urls.length - 2} more)` : "");
+
+    await saveLeadSession(userId, label, finalPosts, {
+      source: "discover",
+      category,
+      keywords,
+      painPoints,
+    }).catch((e) =>
+      logger.error(`[DiscoverWorker] Non-blocking saveLeadSession failed: ${e.message}`)
+    );
 
     return {
       success: true,

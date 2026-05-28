@@ -7,8 +7,11 @@ import {
   checkJobStatus,
   getLeadHistory,
   getSessionLeads,
+  verifyCheckoutSession,
 } from "../services/api";
 import { logout } from "../auth/authService";
+import { supabase } from "../auth/supabaseClient";
+import BillingView from "../components/BillingView";
 
 export default function MainApp({ user }) {
   const [posts, setPosts]               = useState([]);
@@ -64,6 +67,39 @@ export default function MainApp({ user }) {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadHistory(); }, [loadHistory]);
+
+  // Handle Stripe Payment Redirect Verification
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    const sessionId = params.get("session_id");
+
+    if (payment === "success" && sessionId) {
+      setLoading(true);
+      setProgressMsg("Verifying your subscription payment with Stripe...");
+      
+      verifyCheckoutSession(sessionId).then(async (res) => {
+        if (res.success) {
+          // Force Supabase token refresh to fetch new app_metadata.plan
+          await supabase.auth.refreshSession();
+          
+          // Clear query params to clean URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+          
+          // Alert user of success!
+          alert(`🎉 Payment verified! Your account is upgraded to the ${res.plan.toUpperCase()} plan.`);
+        } else {
+          setError(res.message || "Failed to verify Stripe checkout session.");
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        setLoading(false);
+        setProgressMsg("");
+      });
+    } else if (payment === "cancelled") {
+      alert("❌ Stripe checkout was cancelled.");
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, [user]);
 
   // ── Search ──────────────────────────────────────────────────
   const handleSearch = async (e) => {
@@ -141,6 +177,7 @@ export default function MainApp({ user }) {
     cancelPolling();
     setActiveSessionId(null); setActiveSessionMeta(null);
     setPosts([]); setInfo(null); setError(""); setQuery(""); setUrls("");
+    setMode("search");
   };
 
   const handleLogout = async () => { await logout(); window.location.href = "/"; };
@@ -163,6 +200,7 @@ export default function MainApp({ user }) {
         onNewSearch={handleNewSearch}
         onSessionDeleted={handleSessionDeleted}
         onLogout={handleLogout}
+        onSelectBilling={() => setMode("billing")}
       />
 
       <main className="dash-main">
@@ -176,13 +214,18 @@ export default function MainApp({ user }) {
                 <span className="dash-breadcrumb">"{activeSessionMeta.query}"</span>
                 <span className="dash-breadcrumb-sub">Saved session</span>
               </>
+            ) : mode === "billing" ? (
+              <>
+                <button className="dash-back-btn" onClick={handleNewSearch} title="Back to search">← Back</button>
+                <span className="dash-breadcrumb">Billing & Subscription</span>
+              </>
             ) : (
               <h1 className="dash-title">Find Leads</h1>
             )}
           </div>
 
           {/* Mode tabs top-right */}
-          {!activeSessionMeta && (
+          {!activeSessionMeta && mode !== "billing" && (
             <div className="dash-mode-tabs">
               <button
                 id="tab-search"
@@ -207,8 +250,10 @@ export default function MainApp({ user }) {
         {/* ── CONTENT AREA ───────────────────────────────── */}
         <div className="dash-body">
 
-          {/* ── IDLE WELCOME STATE ─────────────────────── */}
-          {isIdle && (
+          {/* ── BILLING VIEW ───────────────────────────── */}
+          {mode === "billing" ? (
+            <BillingView user={user} />
+          ) : isIdle && (
             <div className="dash-welcome">
               <div className="dash-welcome-badge">
                 <span className="dash-welcome-dot" />

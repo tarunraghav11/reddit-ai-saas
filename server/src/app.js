@@ -4,6 +4,7 @@ import cors from "cors";
 import helmet from "helmet";
 import routes from "./routes/redditRoutes.js";
 import historyRoutes from "./routes/leadsHistoryRoutes.js";
+import paymentRoutes from "./routes/paymentRoutes.js";
 import { logger } from "./utils/logger.js";
 
 const app = express();
@@ -12,7 +13,11 @@ const app = express();
  * Middleware
  */
 app.use(helmet());
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:5173",
@@ -24,6 +29,7 @@ app.use(cors({
  */
 app.use("/", routes);
 app.use("/", historyRoutes);
+app.use("/", paymentRoutes);
 
 /**
  * Global Error Handler

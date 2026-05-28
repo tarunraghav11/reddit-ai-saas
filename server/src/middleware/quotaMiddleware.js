@@ -2,9 +2,9 @@ import { connection as redis } from "../config/redis.js";
 import { logger } from "../utils/logger.js";
 
 const QUOTAS = {
-  free: { search: 3, discover: 1 },
-  starter: { search: 20, discover: 10 },
-  pro: { search: 100, discover: 50 }
+  free: { search: 3, discover: 1, outreach: 2 },
+  starter: { search: 20, discover: 10, outreach: 15 },
+  pro: { search: 100, discover: 50, outreach: 100 }
 };
 
 const getTodayString = () => {

@@ -10,6 +10,16 @@ export const loginWithGoogle = async () => {
   });
 };
 
+// Email Login
+export const loginWithEmail = async (email, password) => {
+  return await supabase.auth.signInWithPassword({ email, password });
+};
+
+// Email Sign Up
+export const signUpWithEmail = async (email, password) => {
+  return await supabase.auth.signUp({ email, password });
+};
+
 // Get current session
 export const getSession = async () => {
   const { data } = await supabase.auth.getSession();
